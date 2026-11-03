@@ -22,6 +22,7 @@ private fun sizeLabel(bytes:Long)=if(bytes<=0) "" else String.format(Locale.US,"
 /** Step-by-step update dialog: check → download → install. */
 @Composable fun UpdateDialog(state:UpdateState,onDismiss:()->Unit) {
  val context=LocalContext.current
+ val radioActive by RadioService.active.collectAsState()
  fun openPage(url:String) {runCatching {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}}
  val releasesPage="https://github.com/${BuildConfig.UPDATE_REPO}/releases"
  AlertDialog(onDismissRequest={Updater.dismiss();onDismiss()},icon={Icon(Icons.Default.Refresh,null)},
@@ -45,7 +46,7 @@ private fun sizeLabel(bytes:Long)=if(bytes<=0) "" else String.format(Locale.US,"
       Text(tr("Ένα βήμα ακόμα:","One more step:"),fontWeight=FontWeight.Bold)
       Text(tr("1. Πάτα «Άδεια εγκατάστασης».\n2. Ενεργοποίησε «Να επιτρέπεται από αυτή την πηγή».\n3. Γύρνα πίσω — η εγκατάσταση συνεχίζει μόνη της.","1. Tap “Allow installing”.\n2. Turn on “Allow from this source”.\n3. Come back — the installation continues by itself."))
      } else {
-      if(state.auto && RadioService.active.value) Text(tr("Θα εγκατασταθεί μόνη της όταν σταματήσει το ραδιόφωνο. Ή πάτα «Εγκατάσταση τώρα» (ο ήχος θα κοπεί για λίγα δευτερόλεπτα).","It installs by itself when the radio stops. Or tap “Install now” (sound stops for a few seconds)."),color=MaterialTheme.colorScheme.primary)
+      if(state.auto && radioActive) Text(tr("Θα εγκατασταθεί μόνη της όταν σταματήσει το ραδιόφωνο. Ή πάτα «Εγκατάσταση τώρα» (ο ήχος θα κοπεί για λίγα δευτερόλεπτα).","It installs by itself when the radio stops. Or tap “Install now” (sound stops for a few seconds)."),color=MaterialTheme.colorScheme.primary)
       Text(tr("Αν εμφανιστεί η οθόνη του Android, πάτα «Ενημέρωση». Οι σταθμοί και οι ρυθμίσεις μένουν.","If Android's screen appears, tap “Update”. Stations and settings are kept."))
      }
     }
