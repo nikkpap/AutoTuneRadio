@@ -89,7 +89,7 @@ class RadioService: android.service.media.MediaBrowserService() {
  private var equalizer:Equalizer?=null
  private var networkCallback:ConnectivityManager.NetworkCallback?=null
  private val preferenceListener=android.content.SharedPreferences.OnSharedPreferenceChangeListener { _,key ->
-  if(key=="stations" || key=="last" || key=="lang") handler.post {
+  if(key=="stations" || key=="last" || key=="lang" || key=="groupsOn") handler.post {
    notifyChildrenChanged("stations");notifyChildrenChanged("recent");notifyChildrenChanged("all");notifyChildrenChanged("groups")
    Groups.used(store.stations()).forEach {notifyChildrenChanged("group:$it")}
    // An edited station (new name/URL/logo) replaces the cached copy; a changed URL reconnects.
@@ -296,7 +296,7 @@ class RadioService: android.service.media.MediaBrowserService() {
   // With a group selected (e.g. Rock), the steering wheel cycles only through that group.
   val group=store.activeGroup
   val inGroup=everything.filter {Groups.matches(it,group)}
-  val all=if(store.skipInGroup && group.isNotBlank() && inGroup.isNotEmpty() && (current.value.isBlank() || inGroup.any {it.id==current.value})) inGroup else everything
+  val all=if(store.groupsOn && store.skipInGroup && group.isNotBlank() && inGroup.isNotEmpty() && (current.value.isBlank() || inGroup.any {it.id==current.value})) inGroup else everything
   val index=all.indexOfFirst { it.id==current.value }
   val next=if(index<0) { if(direction>0) 0 else all.lastIndex } else Math.floorMod(index+direction,all.size)
   start(all[next])
@@ -401,7 +401,7 @@ class RadioService: android.service.media.MediaBrowserService() {
  }
  override fun onLoadChildren(parentId:String,result:Result<MutableList<android.media.browse.MediaBrowser.MediaItem>>) {
   val all=store.stations()
-  val groups=Groups.used(all)
+  val groups=if(store.groupsOn) Groups.used(all) else emptyList()
   val items:List<android.media.browse.MediaBrowser.MediaItem> = when {
    // With groups: two tabs in Android Auto — "All stations" and "Groups" (each group is a folder).
    parentId=="stations" && groups.isNotEmpty() -> listOf(folder("all",tr("Όλοι οι σταθμοί","All stations"),"${all.size}"),folder("groups",tr("Ομάδες","Groups"),"${groups.size}"))

@@ -62,16 +62,16 @@ import coil.compose.SubcomposeAsyncImage
 }
 
 @Composable fun CarRadioScreen(modifier:Modifier,playerRight:Boolean,stations:List<Station>,current:String,playing:Boolean,active:Boolean,status:String,broadcast:String,buffered:Long,query:String,onQuery:(String)->Unit,
- showBars:Boolean,sleepAt:Long,hasHistory:Boolean,activeGroup:String,onGroup:(String)->Unit,
+ showBars:Boolean,sleepAt:Long,hasHistory:Boolean,activeGroup:String,onGroup:(String)->Unit,groupsOn:Boolean,
  onPlay:()->Unit,onPause:()->Unit,onNext:()->Unit,onPrevious:()->Unit,onSearch:()->Unit,onSettings:()->Unit,onSleep:()->Unit,onHistory:()->Unit,onReorder:(Station)->Unit,onStation:(Station)->Unit,onEdit:(Station)->Unit) {
  val context=LocalContext.current
  val listState=rememberLazyListState()
  val look=LocalLook.current
  val colors=MaterialTheme.colorScheme
- val groups=remember(stations) {Groups.used(stations)}
+ val groups=remember(stations,groupsOn) {if(groupsOn) Groups.used(stations) else emptyList()}
  val hasUngrouped=stations.any {it.group.isBlank()}
  // A group that no longer exists (renamed/deleted) falls back to "All".
- val group=if(activeGroup.isBlank() || activeGroup in groups || (activeGroup==Groups.NONE && hasUngrouped && groups.isNotEmpty())) activeGroup else ""
+ val group=if(!groupsOn) "" else if(activeGroup.isBlank() || activeGroup in groups || (activeGroup==Groups.NONE && hasUngrouped && groups.isNotEmpty())) activeGroup else ""
  val inGroup=stations.filter {Groups.matches(it,group)}
  val filtered=inGroup.filter { it.name.contains(query,true) }
  LaunchedEffect(current,stations) {
@@ -264,6 +264,7 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
  var bars by remember {mutableStateOf(store.showBars)}
  var screenOn by remember {mutableStateOf(store.keepScreenOn)}
  var skipGroup by remember {mutableStateOf(store.skipInGroup)}
+ var groupsOn by remember {mutableStateOf(store.groupsOn)}
  val debugOn=remember(revision) {context.getSharedPreferences("radio",0).getBoolean("debugOn",false)}
  var pick by remember {mutableStateOf(false)}
  val colors=MaterialTheme.colorScheme
@@ -346,9 +347,10 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
      Text(tr("Ομάδες σταθμών","Station groups"),fontWeight=FontWeight.Bold,fontSize=20.sp)
      Text(tr("Ειδήσεις, Αθλητικά, Rock, Pop… Στον player εμφανίζονται κουμπιά για να βλέπεις μόνο μία ομάδα. Ομάδα ορίζεις από το ⋮ κάθε σταθμού.","News, Sports, Rock, Pop… The player shows buttons to see one group at a time. Set a group from each station's ⋮ menu."),fontSize=13.sp,color=colors.onSurfaceVariant)
      Text(if(used.isEmpty()) tr("Δεν υπάρχουν ακόμα ομάδες.","No groups yet.") else used.joinToString(" · ") {g -> "${Groups.label(g)} (${stations.count {it.group==g}})"},color=colors.primary)
+     SettingSwitch(tr("Ομάδες ενεργές","Groups on"),tr("Κλειστό: μία ενιαία λίστα σε player, τιμόνι και Android Auto. Οι ομάδες δεν σβήνονται — ανάβεις ξανά και επανέρχονται.","Off: one plain list in the player, steering wheel and Android Auto. Groups are not deleted — turn on again and they come back."),groupsOn) {groupsOn=it;store.groupsOn=it}
      Button(onAutoGroup,Modifier.fillMaxWidth().heightIn(min=60.dp),enabled=stations.any {it.group.isBlank()}) {Text(tr("Αυτόματη ομαδοποίηση από τα ονόματα","Auto-group by station names"))}
      Text(tr("Βάζει ομάδα μόνο στους σταθμούς που δεν έχουν, π.χ. «ΣΠΟΡ FM» → Αθλητικά, «1055Rock» → Rock. Μπορείς να το αλλάξεις μετά.","Only fills stations without a group, e.g. “Sport FM” → Sports, “1055Rock” → Rock. You can change it afterwards."),fontSize=13.sp,color=colors.onSurfaceVariant)
-     SettingSwitch(tr("Τιμόνι μέσα στην ομάδα","Steering wheel within group"),tr("Επόμενος / προηγούμενος αλλάζει μόνο σταθμούς της ομάδας που έχεις επιλέξει.","Next / previous only switches between stations of the selected group."),skipGroup) {skipGroup=it;store.skipInGroup=it}
+     if(groupsOn) SettingSwitch(tr("Τιμόνι μέσα στην ομάδα","Steering wheel within group"),tr("Επόμενος / προηγούμενος αλλάζει μόνο σταθμούς της ομάδας που έχεις επιλέξει.","Next / previous only switches between stations of the selected group."),skipGroup) {skipGroup=it;store.skipInGroup=it}
     }}
     item {OutlinedButton(onSystem,Modifier.fillMaxWidth().heightIn(min=60.dp)){Text(tr("Ρυθμίσεις συσκευής / μπαταρίας","Device / battery settings"))}}
    }

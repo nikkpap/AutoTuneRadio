@@ -74,6 +74,8 @@ class Store(context: Context) {
  }
  /** "" = all stations, GROUP_NONE = stations without a group, otherwise a group key. */
  var activeGroup: String get() = p.getString("activeGroup","").orEmpty(); set(v) { p.edit().putString("activeGroup",v).apply() }
+ /** Station groups on/off. Off = one plain list everywhere (player, steering wheel, Android Auto); groups are kept. */
+ var groupsOn: Boolean get() = p.getBoolean("groupsOn",true); set(v) { p.edit().putBoolean("groupsOn",v).apply() }
  /** Steering-wheel next/previous stays inside the selected group. */
  var skipInGroup: Boolean get() = p.getBoolean("skipInGroup",true); set(v) { p.edit().putBoolean("skipInGroup",v).apply() }
  fun startup(): Station? {val all=stations();return all.find {it.id==chosen} ?: all.find {it.id==last} ?: all.firstOrNull()}
