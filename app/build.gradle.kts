@@ -1,13 +1,15 @@
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose") }
 
 // ---- Version -------------------------------------------------------------------------------
-// Change BASE_VERSION when you start a new version (e.g. "0.24").
+// Change appVersionBase in gradle.properties when you start a new version (e.g. 0.24).
 // GitHub Actions passes BUILD_NUMBER (the run number), so every push gets a higher version:
 //   local build  → 0.23.0   (versionCode 23000)
 //   CI build #57 → 0.23.57  (versionCode 23057)
-val baseVersion = "0.23"
+val baseVersion = (project.findProperty("appVersionBase") as String?) ?: "0.23"
 val buildNumber = (System.getenv("BUILD_NUMBER") ?: "0").toIntOrNull() ?: 0
-val minor = baseVersion.substringAfter('.').toInt()
+val versionParts = baseVersion.split('.').map { it.trim().toIntOrNull() ?: 0 }
+val major = versionParts.getOrElse(0) { 0 }
+val minor = versionParts.getOrElse(1) { 0 }
 
 // ---- Signing -------------------------------------------------------------------------------
 // The same key must sign every build, otherwise Android refuses to install an update over the old app.
@@ -20,7 +22,7 @@ android {
  compileSdk = 35
  defaultConfig {
   applicationId = "gr.radiorise.player"; minSdk = 28; targetSdk = 34
-  versionCode = minor * 1000 + buildNumber
+  versionCode = major * 100000 + minor * 1000 + buildNumber   // 0.23.57 → 23057, 1.0.3 → 100003
   versionName = "$baseVersion.$buildNumber"
   buildConfigField("String", "UPDATE_REPO", "\"nikkpap/AutoTuneRadio\"")
  }

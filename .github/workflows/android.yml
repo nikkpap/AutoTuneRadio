@@ -1,6 +1,6 @@
 # Build → test → (on every push to main) publish a GitHub Release with the signed APK.
 # The app checks these releases and offers the update in Settings → About.
-name: Build & Release APK
+name: Build & Release
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
       - name: Version
         id: ver
         run: |
-          BASE=$(grep -oP 'val baseVersion = "\K[^"]+' app/build.gradle.kts)
+          BASE=$(grep -oP '^appVersionBase=\K.+' gradle.properties | tr -d '\r ')
           VERSION="$BASE.$BUILD_NUMBER"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Building AutoTune Radio $VERSION"

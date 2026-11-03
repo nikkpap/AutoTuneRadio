@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
 
 class RadioApplication:Application() {
  override fun onCreate() {
-  super.onCreate();Lang.init(this);DebugLog.init(this);CalendarEngine.init(this)
+  super.onCreate();Lang.init(this);DebugLog.init(this);CalendarEngine.init(this);Updater.schedule(this)
  }
 }
 

@@ -44,20 +44,24 @@ import java.util.Locale
 
 class MainActivity: ComponentActivity() {
  private var openCalendar by mutableStateOf(false)
- override fun onNewIntent(intent:Intent) {super.onNewIntent(intent);setIntent(intent);openCalendar=intent.action=="OPEN_CALENDAR"}
+ private var openUpdate by mutableStateOf(false)
+ override fun onNewIntent(intent:Intent) {super.onNewIntent(intent);setIntent(intent);openCalendar=intent.action=="OPEN_CALENDAR";openUpdate=intent.action=="OPEN_UPDATE"}
  private var lastResume by mutableLongStateOf(0L)
  private var foreground by mutableStateOf(false)
  override fun onResume() {
   super.onResume();DebugLog.event("APP","onResume");CalendarEngine.requestRefresh(this);lastResume=SystemClock.elapsedRealtime();foreground=true
+  Updater.foreground=true
   // Back from "Install unknown apps": continue the update automatically once the permission was given.
   (Updater.state.value as? UpdateState.Ready)?.let {if(it.needsPermission && Updater.canInstall(this)) Updater.install(this)}
+  Updater.autoCheck(this)
  }
- override fun onPause() {DebugLog.event("APP","onPause");DebugLog.flush();foreground=false;super.onPause()}
+ override fun onPause() {DebugLog.event("APP","onPause");DebugLog.flush();foreground=false;Updater.foreground=false;super.onPause()}
  private var freshLaunch=false
  override fun onCreate(state:Bundle?) {
   super.onCreate(state)
   DebugLog.event("APP","onCreate restored=${state!=null}")
   openCalendar=intent.action=="OPEN_CALENDAR"
+  openUpdate=intent.action=="OPEN_UPDATE"
   freshLaunch=state==null
   setContent {
    val store=remember {Store(applicationContext)}
@@ -173,16 +177,25 @@ class MainActivity: ComponentActivity() {
    if(Build.VERSION.SDK_INT>=33 && androidx.core.content.ContextCompat.checkSelfPermission(this@MainActivity,Manifest.permission.POST_NOTIFICATIONS)!=android.content.pm.PackageManager.PERMISSION_GRANTED && !prefs.getBoolean("askedNotifications",false)) {
     prefs.edit().putBoolean("askedNotifications",true).apply();notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
    }
-   Updater.autoCheck(this@MainActivity)
    val error=prefs.getString("bootError",null)
    if(error!=null) { message(tr("Το Android εμπόδισε την αυτόματη εκκίνηση. Άνοιξε τον σταθμό χειροκίνητα.","Android blocked the automatic start. Start the station manually.")); prefs.edit().remove("bootError").apply() }
   }
-  // A silent background check found a new version: offer it once, without interrupting.
-  LaunchedEffect(updateState) {
-   val available=updateState as? UpdateState.Available ?: return@LaunchedEffect
-   if(dialog=="update" || announcedUpdate==available.release.version) return@LaunchedEffect
-   announcedUpdate=available.release.version
-   val result=snack.showSnackbar(tr("Νέα έκδοση ${available.release.version} διαθέσιμη","New version ${available.release.version} available"),actionLabel=tr("Δες","View"),withDismissAction=true,duration=SnackbarDuration.Long)
+  // Tapped the "update ready" notification.
+  LaunchedEffect(openUpdate) {if(openUpdate) {openUpdate=false;tab=0;saverOpen=false;dialog="update";Updater.installWhenIdle(this@MainActivity)}}
+  // Automatic updates: installs by itself as soon as the radio stops playing.
+  LaunchedEffect(updateState,active) {
+   val ready=updateState as? UpdateState.Ready
+   if(ready!=null && ready.auto && !active && !ready.needsPermission) {Updater.installWhenIdle(this@MainActivity);return@LaunchedEffect}
+   // Otherwise tell the user once per version (ready-but-waiting, needs permission, or auto-update switched off).
+   val release=(updateState as? UpdateState.Available)?.release ?: ready?.release ?: return@LaunchedEffect
+   if(dialog=="update" || announcedUpdate==release.version) return@LaunchedEffect
+   announcedUpdate=release.version
+   val text=when {
+    ready!=null && ready.needsPermission -> tr("Η ενημέρωση ${release.version} θέλει άδεια εγκατάστασης","Update ${release.version} needs install permission")
+    ready!=null -> tr("Η ${release.version} είναι έτοιμη — θα μπει όταν σταματήσει το ραδιόφωνο","${release.version} is ready — installs when the radio stops")
+    else -> tr("Νέα έκδοση ${release.version} διαθέσιμη","New version ${release.version} available")
+   }
+   val result=snack.showSnackbar(text,actionLabel=tr("Δες","View"),withDismissAction=true,duration=SnackbarDuration.Long)
    if(result==SnackbarResult.ActionPerformed) dialog="update"
   }
   BackHandler(enabled=tab==1 && !saverOpen) {tab=0;lastTouch=SystemClock.elapsedRealtime()}

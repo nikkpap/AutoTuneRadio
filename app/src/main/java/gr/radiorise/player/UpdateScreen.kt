@@ -44,7 +44,10 @@ private fun sizeLabel(bytes:Long)=if(bytes<=0) "" else String.format(Locale.US,"
      if(state.needsPermission) {
       Text(tr("Ένα βήμα ακόμα:","One more step:"),fontWeight=FontWeight.Bold)
       Text(tr("1. Πάτα «Άδεια εγκατάστασης».\n2. Ενεργοποίησε «Να επιτρέπεται από αυτή την πηγή».\n3. Γύρνα πίσω — η εγκατάσταση συνεχίζει μόνη της.","1. Tap “Allow installing”.\n2. Turn on “Allow from this source”.\n3. Come back — the installation continues by itself."))
-     } else Text(tr("Πάτα «Εγκατάσταση» και μετά «Ενημέρωση» στην οθόνη του Android. Οι σταθμοί και οι ρυθμίσεις μένουν.","Tap “Install”, then “Update” on Android's screen. Stations and settings are kept."))
+     } else {
+      if(state.auto && RadioService.active.value) Text(tr("Θα εγκατασταθεί μόνη της όταν σταματήσει το ραδιόφωνο. Ή πάτα «Εγκατάσταση τώρα» (ο ήχος θα κοπεί για λίγα δευτερόλεπτα).","It installs by itself when the radio stops. Or tap “Install now” (sound stops for a few seconds)."),color=MaterialTheme.colorScheme.primary)
+      Text(tr("Αν εμφανιστεί η οθόνη του Android, πάτα «Ενημέρωση». Οι σταθμοί και οι ρυθμίσεις μένουν.","If Android's screen appears, tap “Update”. Stations and settings are kept."))
+     }
     }
     is UpdateState.Installing -> Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
      CircularProgressIndicator(Modifier.size(28.dp));Text(tr("Εγκατάσταση… επιβεβαίωσε στην οθόνη του Android.","Installing… confirm on Android's screen."))
@@ -59,7 +62,7 @@ private fun sizeLabel(bytes:Long)=if(bytes<=0) "" else String.format(Locale.US,"
    when(state) {
     is UpdateState.Available -> Button({Updater.download(context,state.release)}) {Text(tr("Λήψη & εγκατάσταση","Download & install"))}
     is UpdateState.Ready -> if(state.needsPermission) Button({Updater.openInstallPermission(context)}) {Text(tr("Άδεια εγκατάστασης","Allow installing"))}
-     else Button({Updater.install(context)}) {Text(tr("Εγκατάσταση","Install"))}
+     else Button({Updater.install(context)}) {Text(tr("Εγκατάσταση τώρα","Install now"))}
     is UpdateState.Error -> Button({if(state.release!=null) Updater.download(context,state.release) else Updater.check(context)}) {Text(tr("Ξανά","Retry"))}
     is UpdateState.UpToDate -> Button({Updater.dismiss();onDismiss()}) {Text("OK")}
     else -> TextButton({Updater.dismiss();onDismiss()}) {Text(tr("Κλείσιμο","Close"))}
@@ -93,12 +96,12 @@ private fun sizeLabel(bytes:Long)=if(bytes<=0) "" else String.format(Locale.US,"
  if(state is UpdateState.Available) Text(tr("Διαθέσιμη: ","Available: ")+(state as UpdateState.Available).release.version,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)
  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
   Column(Modifier.weight(1f)) {
-   Text(tr("Αυτόματος έλεγχος","Automatic check"),fontWeight=FontWeight.Bold)
-   Text(tr("Κάθε 6 ώρες, όταν ανοίγει η εφαρμογή. Δεν κατεβάζει τίποτα χωρίς εσένα.","Every 6 hours when the app opens. Never downloads without you."),fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   Text(tr("Αυτόματες ενημερώσεις","Automatic updates"),fontWeight=FontWeight.Bold)
+   Text(tr("Ελέγχει σε κάθε άνοιγμα και κάθε 6 ώρες, κατεβάζει και εγκαθιστά μόνο του — ποτέ όσο παίζει το ραδιόφωνο. Κλειστό: μόνο ειδοποίηση.","Checks on every open and every 6 hours, downloads and installs by itself — never while the radio plays. Off: notify only."),fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
   }
   Switch(auto,{store.autoUpdate=it})
  }
- Button({if(state !is UpdateState.Available && state !is UpdateState.Ready) Updater.check(context);onOpen()},Modifier.fillMaxWidth().heightIn(min=56.dp)) {
-  Text(if(state is UpdateState.Available) tr("Δες τη νέα έκδοση","See the new version") else tr("Έλεγχος για ενημερώσεις","Check for updates"))
+ Button({if(state is UpdateState.Idle || state is UpdateState.UpToDate || state is UpdateState.Error) Updater.check(context);onOpen()},Modifier.fillMaxWidth().heightIn(min=56.dp)) {
+  Text(if(state is UpdateState.Available || state is UpdateState.Ready || state is UpdateState.Downloading) tr("Δες τη νέα έκδοση","See the new version") else tr("Έλεγχος για ενημερώσεις","Check for updates"))
  }
 }
