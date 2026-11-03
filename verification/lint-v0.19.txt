@@ -1,0 +1,126 @@
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/CalendarEngine.kt:143: Warning: Consider using apply() instead; commit writes its data to persistent storage immediately, whereas apply will handle it in the background [ApplySharedPref]
+   prefs.edit().putString("pending",pending.toString()).commit()
+                                                        ~~~~~~~~
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/CalendarEngine.kt:167: Warning: Consider using apply() instead; commit writes its data to persistent storage immediately, whereas apply will handle it in the background [ApplySharedPref]
+  p.edit().putString("pending","[]").putStringSet("visible",emptySet()).putString("shownMeetings","{}").commit()
+                                                                                                        ~~~~~~~~
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/CalendarEngine.kt:184: Warning: Consider using apply() instead; commit writes its data to persistent storage immediately, whereas apply will handle it in the background [ApplySharedPref]
+   if(action=="CANCEL") p.edit().putStringSet("dismissed",p.getStringSet("dismissed",emptySet()).orEmpty()+key).commit()
+                                                                                                                ~~~~~~~~
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/CalendarEngine.kt:186: Warning: Consider using apply() instead; commit writes its data to persistent storage immediately, whereas apply will handle it in the background [ApplySharedPref]
+    val s=runCatching {JSONObject(p.getString("snoozes","{}"))}.getOrDefault(JSONObject());s.put(key,System.currentTimeMillis()+store.calendarSnooze*60_000L);p.edit().putString("snoozes",s.toString()).commit()
+                                                                                                                                                                                                         ~~~~~~~~
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/CalendarEngine.kt:202: Warning: Consider using apply() instead; commit writes its data to persistent storage immediately, whereas apply will handle it in the background [ApplySharedPref]
+  p.edit().putString("shownMeetings",shown.toString()).putStringSet("delivered",p.getStringSet("delivered",emptySet()).orEmpty()+token).putStringSet("visible",p.getStringSet("visible",emptySet()).orEmpty()+key).commit()
+                                                                                                                                                                                                                   ~~~~~~~~
+
+   Explanation for issues of type "ApplySharedPref":
+   Consider using apply() instead of commit on shared preferences. Whereas
+   commit blocks and writes its data to persistent storage immediately, apply
+   will handle it in the background.
+
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/build.gradle.kts:5: Warning: Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details. [OldTargetApi]
+ defaultConfig { applicationId = "gr.radiorise.player"; minSdk = 28; targetSdk = 34; versionCode = 19; versionName = "0.19.0" }
+                                                                     ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "OldTargetApi":
+   When your application runs on a version of Android that is more recent than
+   your targetSdkVersion specifies that it has been tested with, various
+   compatibility modes kick in. This ensures that your application continues
+   to work, but it may look out of place. For example, if the targetSdkVersion
+   is less than 14, your app may get an option button in the UI.
+
+   To fix this issue, set the targetSdkVersion to the highest available value.
+   Then test your app to make sure everything works correctly. You may want to
+   consult the compatibility notes to see what changes apply to each version
+   you are adding support for:
+   https://developer.android.com/reference/android/os/Build.VERSION_CODES.html
+   as well as follow this guide:
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.
+   html
+
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.html
+
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/AndroidManifest.xml:24: Warning: Exported service does not require permission [ExportedService]
+  <service android:name=".RadioService" android:exported="true" android:foregroundServiceType="mediaPlayback">
+   ~~~~~~~
+
+   Explanation for issues of type "ExportedService":
+   Exported services (services which either set exported=true or contain an
+   intent-filter and do not specify exported=false) should define a permission
+   that an entity must have in order to launch the service or bind to it.
+   Without this, any application can use this service.
+
+   https://goo.gle/ExportedService
+
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/AndroidManifest.xml:13: Warning: The attribute android:allowBackup is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute android:dataExtractionRules specifying an @xml resource which configures cloud backups and device transfers on Android 12 and higher. [DataExtractionRules]
+ <application android:name=".RadioApplication" android:label="AutoTune Radio" android:icon="@drawable/app_logo" android:roundIcon="@drawable/app_logo" android:theme="@style/AppTheme" android:usesCleartextTraffic="true" android:allowBackup="false">
+                                                                                                                                                                                                                                                ~~~~~
+
+   Explanation for issues of type "DataExtractionRules":
+   Before Android 12, the attributes android:allowBackup and
+   android:fullBackupContent were used to configure all forms of backup,
+   including cloud backups, device-to-device transfers and adb backup.
+
+   In Android 12 and higher, these attributes have been deprecated and will
+   only apply to cloud backups. You should instead use the attribute
+   android:dataExtractionRules, specifying an @xml resource that configures
+   which files to back up, for cloud backups and for device-to-device
+   transfers, separately. If your minSdkVersion supports older versions,
+   you'll still want to specify an android:fullBackupContent resource if the
+   default behavior is not right for your app.
+
+   https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   https://goo.gle/DataExtractionRules
+
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/CalendarEngine.kt:42: Warning: Do not place Android context classes in static fields (static reference to CalendarEngine which has field context pointing to Context); this is a memory leak [StaticFieldLeak]
+object CalendarEngine {
+^
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/CalendarEngine.kt:47: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+ private lateinit var context:Context
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/DebugLog.kt:27: Warning: Do not place Android context classes in static fields (static reference to DebugLog which has field context pointing to Context); this is a memory leak [StaticFieldLeak]
+object DebugLog {
+^
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/java/gr/radiorise/player/DebugLog.kt:30: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+ private lateinit var context:Context
+ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "StaticFieldLeak":
+   A static field will leak contexts.
+
+   Non-static inner classes have an implicit reference to their outer class.
+   If that outer class is for example a Fragment or Activity, then this
+   reference means that the long-running handler/loader/task will hold a
+   reference to the activity which prevents it from getting garbage
+   collected.
+
+   Similarly, direct field references to activities and fragments from these
+   longer running instances can cause leaks.
+
+   ViewModel classes should never point to Views or non-application Contexts.
+
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/res/drawable/app_logo.png: Warning: Launcher icon used as round icon did not have a circular shape [IconLauncherShape]
+
+   Explanation for issues of type "IconLauncherShape":
+   According to the Android Design Guide
+   (https://d.android.com/r/studio-ui/designer/material/iconography) your
+   launcher icons should "use a distinct silhouette", a "three-dimensional,
+   front view, with a slight perspective as if viewed from above, so that
+   users perceive some depth."
+
+   The unique silhouette implies that your launcher icon should not be a
+   filled square.
+
+/workspace/scratch/02d72ac0a2aa/recovered/source/AutoTuneRadio/app/src/main/res/drawable/app_logo.png: Warning: Found bitmap drawable res/drawable/app_logo.png in densityless folder [IconLocation]
+
+   Explanation for issues of type "IconLocation":
+   The res/drawable folder is intended for density-independent graphics such
+   as shapes defined in XML. For bitmaps, move it to drawable-mdpi and
+   consider providing higher and lower resolution versions in drawable-ldpi,
+   drawable-hdpi and drawable-xhdpi. If the icon really is density independent
+   (for example a solid color) you can place it in drawable-nodpi.
+
+   https://developer.android.com/guide/practices/screens_support.html
+
+0 errors, 14 warnings

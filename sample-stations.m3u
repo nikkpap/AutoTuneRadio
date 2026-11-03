@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1,Example station A
+https://example.com/radio-a.mp3
+#EXTINF:-1,Example station B
+https://example.com/radio-b.aac

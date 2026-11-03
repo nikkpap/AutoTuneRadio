@@ -1,0 +1,15 @@
+# Build output
+build/
+.gradle/
+.kotlin/
+dist/
+local.properties
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+# Signing keys — NEVER commit (GitHub Actions uses the SIGNING_KEYSTORE_BASE64 secret)
+*.keystore
+*.jks
+keystore-base64.txt
