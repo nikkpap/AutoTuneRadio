@@ -33,4 +33,17 @@ class PlaylistTest {
  @Test fun themeSeedParsing() {
   assertEquals(210f to 0.5f,Themes.parseSeed("210.0,0.500"));assertNull(Themes.parseSeed(""));assertNull(Themes.parseSeed("x,1"))
  }
+ @Test fun m3uGroupTitleAndLogo() {
+  val s=Playlist.parse("#EXTM3U\n#EXTINF:-1 tvg-logo=\"https://example.com/l.png\" group-title=\"Sports\",Sport, Live\nhttps://example.com/a\n#EXTGRP:Rock\n#EXTINF:-1,Rocky\nhttps://example.com/b")
+  assertEquals("Sport, Live",s[0].name);assertEquals("sports",s[0].group);assertEquals("https://example.com/l.png",s[0].logo);assertEquals("rock",s[1].group)
+ }
+ @Test fun txtGroupColumnAndRoundTrip() {
+  val a=listOf(Station(name="A",url="https://example.com/a",logo="",group="news"),Station(name="B",url="https://example.com/b",group="My mix"))
+  val t=Playlist.parse(Playlist.exportTxt(a));assertEquals("news",t[0].group);assertEquals("My mix",t[1].group)
+  val m=Playlist.parse(Playlist.export(a));assertEquals("news",m[0].group);assertEquals("My mix",m[1].group)
+ }
+ @Test fun groupGuessing() {
+  assertEquals("sports",Groups.guess("ΣΠΟΡ FM (94.6)"));assertEquals("rock",Groups.guess("1055Rock"));assertEquals("chill",Groups.guess("Vanilla Smooth"));assertEquals("",Groups.guess("Metropolis"))
+  assertEquals("news",Groups.normalize("Ειδήσεις"));assertEquals("Thessaloniki",Groups.normalize("Thessaloniki"))
+ }
 }

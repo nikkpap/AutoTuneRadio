@@ -8,7 +8,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
 
-data class Station(val id: String = UUID.randomUUID().toString(), val name: String, val url: String, val logo: String = "")
+/** group: preset key (news, sports, rock …, see Groups) or a custom name; "" = no group. */
+data class Station(val id: String = UUID.randomUUID().toString(), val name: String, val url: String, val logo: String = "", val group: String = "")
 class Store(context: Context) {
  private val p = context.getSharedPreferences("radio", Context.MODE_PRIVATE)
  var reverseWheel: Boolean get() = p.getBoolean("reverseWheel",false); set(v) { p.edit().putBoolean("reverseWheel",v).apply() }
@@ -62,10 +63,19 @@ class Store(context: Context) {
   else -> listOf(0,0,0,0,0)
  }
  fun stations(): List<Station> = runCatching {
-  val a=JSONArray(p.getString("stations","[]")); (0 until a.length()).map { i -> val o=a.getJSONObject(i); Station(o.getString("id"),o.getString("name"),o.getString("url"),o.optString("logo","")) }
+  val a=JSONArray(p.getString("stations","[]")); (0 until a.length()).map { i -> val o=a.getJSONObject(i); Station(o.getString("id"),o.getString("name"),o.getString("url"),o.optString("logo",""),o.optString("group","")) }
  }.getOrDefault(emptyList())
- fun save(s: List<Station>) { DebugLog.event("STATIONS","save total=${s.size}");val a=JSONArray(); s.forEach { a.put(JSONObject().put("id",it.id).put("name",it.name).put("url",it.url).put("logo",it.logo)) }; p.edit().putString("stations",a.toString()).apply() }
- fun merge(s: List<Station>): Int { val old=stations(); val all=(old+s).distinctBy { it.url }; save(all); return all.size-old.size }
+ fun save(s: List<Station>) { DebugLog.event("STATIONS","save total=${s.size}");val a=JSONArray(); s.forEach { a.put(JSONObject().put("id",it.id).put("name",it.name).put("url",it.url).put("logo",it.logo).put("group",it.group)) }; p.edit().putString("stations",a.toString()).apply() }
+ /** Adds new stations (by URL). Existing stations without a group take the group from the imported list. */
+ fun merge(s: List<Station>): Int {
+  val old=stations(); val incoming=s.associateBy { it.url }
+  val updated=old.map { o -> if(o.group.isBlank()) incoming[o.url]?.group?.takeIf { it.isNotBlank() }?.let { o.copy(group=it) } ?: o else o }
+  val all=(updated+s).distinctBy { it.url }; save(all); return all.size-old.size
+ }
+ /** "" = all stations, GROUP_NONE = stations without a group, otherwise a group key. */
+ var activeGroup: String get() = p.getString("activeGroup","").orEmpty(); set(v) { p.edit().putString("activeGroup",v).apply() }
+ /** Steering-wheel next/previous stays inside the selected group. */
+ var skipInGroup: Boolean get() = p.getBoolean("skipInGroup",true); set(v) { p.edit().putBoolean("skipInGroup",v).apply() }
  fun startup(): Station? {val all=stations();return all.find {it.id==chosen} ?: all.find {it.id==last} ?: all.firstOrNull()}
 }
 object Playlist {
@@ -75,7 +85,7 @@ object Playlist {
   fun resolve(u: String) = runCatching { if(base == null) u.trim() else URI(base).resolve(u.trim()).toString() }.getOrDefault("")
   val lines=text.removePrefix("\uFEFF").lineSequence().map { it.trim() }.toList()
   val files=sortedMapOf<Int,String>(); val names=mutableMapOf<Int,String>()
-  val result=mutableListOf<Station>(); var title=""
+  val result=mutableListOf<Station>(); var title=""; var extGroup=""; var extLogo=""
   for(line in lines) {
    if(line.isBlank() || line.startsWith("####")) continue
    // CustomRadioPlayer TXT: name,stream URL,logo URL (CSV quoting supported).
@@ -85,16 +95,26 @@ object Playlist {
      val stream=resolve(fields[1].replace("&amp;","&"))
      if(valid(stream)) {
       val logo=fields.getOrNull(2)?.let { resolve(it.replace("&amp;","&")) }.orEmpty()
-      result.add(Station(name=fields[0].ifBlank { URI(stream).host },url=stream,logo=logo.takeIf(::valid).orEmpty()))
+      result.add(Station(name=fields[0].ifBlank { URI(stream).host },url=stream,logo=logo.takeIf(::valid).orEmpty(),group=Groups.normalize(fields.getOrNull(3).orEmpty())))
       title=""; continue
      }
     }
    }
    val m=Regex("(?i)^(File|Title)(\\d+)=(.*)$").matchEntire(line)
    if(m!=null) { val i=m.groupValues[2].toInt(); if(m.groupValues[1].equals("file",true)) files[i]=resolve(m.groupValues[3]) else names[i]=m.groupValues[3]; continue }
-   if(line.startsWith("#EXTINF",true)) { title=line.substringAfter(',',""); continue }
+   if(line.startsWith("#EXTINF",true)) {
+    // #EXTINF:-1 tvg-logo="…" group-title="Rock",Station name  (the name follows the first comma outside quotes)
+    var quoted=false; var comma=-1
+    for(i in line.indices) { val ch=line[i]; if(ch=='"') quoted=!quoted else if(ch==',' && !quoted) { comma=i; break } }
+    title=if(comma>=0) line.substring(comma+1).trim() else ""
+    val head=if(comma>=0) line.substring(0,comma) else line
+    extGroup=Regex("(?i)group-title=\"([^\"]*)\"").find(head)?.groupValues?.get(1).orEmpty().ifBlank { extGroup }
+    extLogo=Regex("(?i)tvg-logo=\"([^\"]*)\"").find(head)?.groupValues?.get(1).orEmpty()
+    continue
+   }
+   if(line.startsWith("#EXTGRP:",true)) { extGroup=line.substringAfter(':').trim(); continue }
    if(line.isBlank() || line.startsWith("#") || line.startsWith("[") || line.contains('=' ) && !line.startsWith("http",true)) continue
-   val u=resolve(line); if(valid(u)) { result.add(Station(name=title.ifBlank { URI(u).host },url=u)); title="" }
+   val u=resolve(line); if(valid(u)) { result.add(Station(name=title.ifBlank { URI(u).host },url=u,logo=extLogo.takeIf(::valid).orEmpty(),group=Groups.normalize(extGroup))); title=""; extGroup=""; extLogo="" }
   }
   files.forEach { (i,u) -> if(valid(u)) result.add(Station(name=names[i].orEmpty().ifBlank { URI(u).host },url=u)) }
   return result.distinctBy { it.url }
@@ -148,9 +168,14 @@ object Playlist {
  }
  fun exportTxt(s: List<Station>): String {
   fun quote(v:String):String = "\""+v.replace("\"","\"\"").replace('\n',' ')+"\""
-  return "####Stations####\n"+s.joinToString("\n") { quote(it.name)+","+quote(it.url)+","+quote(it.logo) }+"\n"
+  return "####Stations####\n"+s.joinToString("\n") { quote(it.name)+","+quote(it.url)+","+quote(it.logo)+(if(it.group.isNotBlank()) ","+quote(it.group) else "") }+"\n"
  }
- fun export(s: List<Station>) = "#EXTM3U\n"+s.joinToString("\n") { "#EXTINF:-1,${it.name.replace('\n',' ')}\n${it.url}" }+"\n"
+ fun export(s: List<Station>) = "#EXTM3U\n"+s.joinToString("\n") {
+  fun attr(v:String)=v.replace('"','\'').replace('\n',' ')
+  val logo=if(it.logo.isNotBlank()) " tvg-logo=\"${attr(it.logo)}\"" else ""
+  val group=if(it.group.isNotBlank()) " group-title=\"${attr(it.group)}\"" else ""
+  "#EXTINF:-1$logo$group,${it.name.replace('\n',' ')}\n${it.url}"
+ }+"\n"
 }
 
 fun java.io.InputStream.readLimited(): ByteArray {

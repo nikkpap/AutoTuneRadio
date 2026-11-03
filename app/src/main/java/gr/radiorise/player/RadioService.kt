@@ -89,8 +89,9 @@ class RadioService: android.service.media.MediaBrowserService() {
  private var equalizer:Equalizer?=null
  private var networkCallback:ConnectivityManager.NetworkCallback?=null
  private val preferenceListener=android.content.SharedPreferences.OnSharedPreferenceChangeListener { _,key ->
-  if(key=="stations" || key=="last") handler.post {
-   notifyChildrenChanged("stations");notifyChildrenChanged("recent")
+  if(key=="stations" || key=="last" || key=="lang") handler.post {
+   notifyChildrenChanged("stations");notifyChildrenChanged("recent");notifyChildrenChanged("all");notifyChildrenChanged("groups")
+   Groups.used(store.stations()).forEach {notifyChildrenChanged("group:$it")}
    // An edited station (new name/URL/logo) replaces the cached copy; a changed URL reconnects.
    val old=station;val fresh=old?.let {o -> store.stations().find {it.id==o.id}}
    if(key=="stations" && old!=null && fresh!=null && fresh!=old) {
@@ -291,7 +292,11 @@ class RadioService: android.service.media.MediaBrowserService() {
  }
  private fun skip(direction:Int) {
   DebugLog.event("PLAYER","skip direction=$direction")
-  val all=store.stations(); if(all.isEmpty()) return
+  val everything=store.stations(); if(everything.isEmpty()) return
+  // With a group selected (e.g. Rock), the steering wheel cycles only through that group.
+  val group=store.activeGroup
+  val inGroup=everything.filter {Groups.matches(it,group)}
+  val all=if(store.skipInGroup && group.isNotBlank() && inGroup.isNotEmpty() && (current.value.isBlank() || inGroup.any {it.id==current.value})) inGroup else everything
   val index=all.indexOfFirst { it.id==current.value }
   val next=if(index<0) { if(direction>0) 0 else all.lastIndex } else Math.floorMod(index+direction,all.size)
   start(all[next])
@@ -396,11 +401,23 @@ class RadioService: android.service.media.MediaBrowserService() {
  }
  override fun onLoadChildren(parentId:String,result:Result<MutableList<android.media.browse.MediaBrowser.MediaItem>>) {
   val all=store.stations()
-  val selected=when(parentId) {"stations" -> all;"recent" -> listOfNotNull(all.find {it.id==store.last} ?: store.startup());else -> emptyList()}
-  result.sendResult(selected.map(::browserItem).toMutableList())
+  val groups=Groups.used(all)
+  val items:List<android.media.browse.MediaBrowser.MediaItem> = when {
+   // With groups: two tabs in Android Auto — "All stations" and "Groups" (each group is a folder).
+   parentId=="stations" && groups.isNotEmpty() -> listOf(folder("all",tr("Όλοι οι σταθμοί","All stations"),"${all.size}"),folder("groups",tr("Ομάδες","Groups"),"${groups.size}"))
+   parentId=="stations" || parentId=="all" -> all.map(::browserItem)
+   parentId=="groups" -> groups.map {g -> folder("group:$g",Groups.label(g),tr("${all.count {it.group==g}} σταθμοί","${all.count {it.group==g}} stations"))}+
+    (if(all.any {it.group.isBlank()}) listOf(folder("group:${Groups.NONE}",Groups.label(Groups.NONE),"${all.count {it.group.isBlank()}}")) else emptyList())
+   parentId.startsWith("group:") -> parentId.removePrefix("group:").let {g -> all.filter {Groups.matches(it,g)}}.map(::browserItem)
+   parentId=="recent" -> listOfNotNull(all.find {it.id==store.last} ?: store.startup()).map(::browserItem)
+   else -> emptyList()
+  }
+  result.sendResult(items.toMutableList())
  }
+ private fun folder(id:String,title:String,subtitle:String)=android.media.browse.MediaBrowser.MediaItem(
+  android.media.MediaDescription.Builder().setMediaId(id).setTitle(title).setSubtitle(subtitle).build(),android.media.browse.MediaBrowser.MediaItem.FLAG_BROWSABLE)
  private fun browserItem(s:Station):android.media.browse.MediaBrowser.MediaItem {
-  val description=android.media.MediaDescription.Builder().setMediaId(s.id).setTitle(s.name).setSubtitle("Internet radio")
+  val description=android.media.MediaDescription.Builder().setMediaId(s.id).setTitle(s.name).setSubtitle(if(s.group.isNotBlank()) Groups.label(s.group) else "Internet radio")
   if(Playlist.valid(s.logo)) description.setIconUri(android.net.Uri.parse(s.logo))
   return android.media.browse.MediaBrowser.MediaItem(description.build(),android.media.browse.MediaBrowser.MediaItem.FLAG_PLAYABLE)
  }

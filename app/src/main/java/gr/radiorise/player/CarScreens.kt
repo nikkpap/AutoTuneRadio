@@ -31,6 +31,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -61,16 +62,22 @@ import coil.compose.SubcomposeAsyncImage
 }
 
 @Composable fun CarRadioScreen(modifier:Modifier,playerRight:Boolean,stations:List<Station>,current:String,playing:Boolean,active:Boolean,status:String,broadcast:String,buffered:Long,query:String,onQuery:(String)->Unit,
- showBars:Boolean,sleepAt:Long,hasHistory:Boolean,
+ showBars:Boolean,sleepAt:Long,hasHistory:Boolean,activeGroup:String,onGroup:(String)->Unit,
  onPlay:()->Unit,onPause:()->Unit,onNext:()->Unit,onPrevious:()->Unit,onSearch:()->Unit,onSettings:()->Unit,onSleep:()->Unit,onHistory:()->Unit,onReorder:(Station)->Unit,onStation:(Station)->Unit,onEdit:(Station)->Unit) {
  val context=LocalContext.current
  val listState=rememberLazyListState()
  val look=LocalLook.current
  val colors=MaterialTheme.colorScheme
- val filtered=stations.filter { it.name.contains(query,true) }
+ val groups=remember(stations) {Groups.used(stations)}
+ val hasUngrouped=stations.any {it.group.isBlank()}
+ // A group that no longer exists (renamed/deleted) falls back to "All".
+ val group=if(activeGroup.isBlank() || activeGroup in groups || (activeGroup==Groups.NONE && hasUngrouped && groups.isNotEmpty())) activeGroup else ""
+ val inGroup=stations.filter {Groups.matches(it,group)}
+ val filtered=inGroup.filter { it.name.contains(query,true) }
  LaunchedEffect(current,stations) {
   if(current.isNotEmpty()) {
-   val visibleList=if(filtered.none { it.id==current } && stations.any { it.id==current }) {onQuery("");stations} else filtered
+   // Only the search text may hide the playing station; the group the user picked stays as it is.
+   val visibleList=if(filtered.none { it.id==current } && inGroup.any { it.id==current }) {onQuery("");inGroup} else filtered
    val index=visibleList.indexOfFirst {it.id==current}
    if(index>=0) {
     withFrameNanos { }; withFrameNanos { }
@@ -145,6 +152,16 @@ import coil.compose.SubcomposeAsyncImage
   }
   val listPane:@Composable (Modifier)->Unit = { pane ->
    Column(pane,verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    if(groups.isNotEmpty()) {
+     val chips=listOf("")+groups+(if(hasUngrouped) listOf(Groups.NONE) else emptyList())
+     LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(horizontal=2.dp)) {
+      items(chips,key={it}) {g ->
+       val count=stations.count {Groups.matches(it,g)}
+       FilterChip(selected=g==group,onClick={onGroup(g)},label={Text("${Groups.label(g)} · $count",fontSize=15.sp,maxLines=1)},modifier=Modifier.height(44.dp),
+        leadingIcon=if(g==group) {{Icon(Icons.Default.Check,null,Modifier.size(18.dp))}} else null)
+      }
+     }
+    }
     if(query.isNotEmpty()) Row(verticalAlignment=Alignment.CenterVertically) {
      Text(tr("Φίλτρο: ","Filter: ")+query,Modifier.weight(1f),fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      TextButton({onQuery("")},contentPadding=PaddingValues(horizontal=8.dp)) {Text(tr("Όλοι","All"))}
@@ -171,7 +188,7 @@ import coil.compose.SubcomposeAsyncImage
          if(isCurrent && playing) Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
           if(showBars) MiniBars(true,colors.primary)
           Text(tr("Παίζει τώρα","Playing now"),fontSize=12.sp,color=colors.primary)
-         } else Text(if(isCurrent && active) tr("Σύνδεση…","Connecting…") else "Internet radio",fontSize=12.sp,color=if(isCurrent) colors.primary else colors.onSurfaceVariant)
+         } else Text(if(isCurrent && active) tr("Σύνδεση…","Connecting…") else if(s.group.isNotBlank()) Groups.label(s.group) else "Internet radio",fontSize=12.sp,color=if(isCurrent) colors.primary else colors.onSurfaceVariant)
         }
         IconButton({onEdit(s)},Modifier.size(48.dp)) {Icon(Icons.Default.MoreVert,tr("Επεξεργασία","Edit"))}
        }
@@ -233,7 +250,7 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
  if(selected==Themes.AUTO) Text(tr("Ακολουθεί το σκοτεινό θέμα του Android (π.χ. προβολείς / νύχτα στο αυτοκίνητο).","Follows Android's dark theme (e.g. headlights / night mode in the car)."),fontSize=13.sp,color=MaterialTheme.colorScheme.primary)
 }
 
-@Composable fun CarSettingsScreen(modifier:Modifier,store:Store,stations:List<Station>,revision:Int,onFolder:()->Unit,onSaverPreview:()->Unit,onDebug:(Boolean)->Unit,onAdd:()->Unit,onImport:()->Unit,onExportM3u:()->Unit,onExportTxt:()->Unit,onSystem:()->Unit,initialPage:Int=0,pageRequest:Int=0,onUpdates:()->Unit={}) {
+@Composable fun CarSettingsScreen(modifier:Modifier,store:Store,stations:List<Station>,revision:Int,onFolder:()->Unit,onSaverPreview:()->Unit,onDebug:(Boolean)->Unit,onAdd:()->Unit,onImport:()->Unit,onExportM3u:()->Unit,onExportTxt:()->Unit,onSystem:()->Unit,initialPage:Int=0,pageRequest:Int=0,onUpdates:()->Unit={},onAutoGroup:()->Unit={}) {
  val context=LocalContext.current
  val pager=rememberPagerState(initialPage=initialPage,pageCount={7})
  val scope=rememberCoroutineScope()
@@ -246,6 +263,7 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
  var duck by remember {mutableStateOf(store.duckNav)}
  var bars by remember {mutableStateOf(store.showBars)}
  var screenOn by remember {mutableStateOf(store.keepScreenOn)}
+ var skipGroup by remember {mutableStateOf(store.skipInGroup)}
  val debugOn=remember(revision) {context.getSharedPreferences("radio",0).getBoolean("debugOn",false)}
  var pick by remember {mutableStateOf(false)}
  val colors=MaterialTheme.colorScheme
@@ -322,6 +340,15 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
      Text(tr("Αντίγραφο σταθμών","Station backup"),fontWeight=FontWeight.Bold,fontSize=20.sp)
      Button(onExportTxt,Modifier.fillMaxWidth().heightIn(min=60.dp),enabled=stations.isNotEmpty()){Text(tr("Εξαγωγή TXT με λογότυπα","Export TXT with logos"))}
      OutlinedButton(onExportM3u,Modifier.fillMaxWidth().heightIn(min=60.dp),enabled=stations.isNotEmpty()){Text(tr("Εξαγωγή M3U","Export M3U"))}
+    }}
+    item {SectionCard {
+     val used=Groups.used(stations)
+     Text(tr("Ομάδες σταθμών","Station groups"),fontWeight=FontWeight.Bold,fontSize=20.sp)
+     Text(tr("Ειδήσεις, Αθλητικά, Rock, Pop… Στον player εμφανίζονται κουμπιά για να βλέπεις μόνο μία ομάδα. Ομάδα ορίζεις από το ⋮ κάθε σταθμού.","News, Sports, Rock, Pop… The player shows buttons to see one group at a time. Set a group from each station's ⋮ menu."),fontSize=13.sp,color=colors.onSurfaceVariant)
+     Text(if(used.isEmpty()) tr("Δεν υπάρχουν ακόμα ομάδες.","No groups yet.") else used.joinToString(" · ") {g -> "${Groups.label(g)} (${stations.count {it.group==g}})"},color=colors.primary)
+     Button(onAutoGroup,Modifier.fillMaxWidth().heightIn(min=60.dp),enabled=stations.any {it.group.isBlank()}) {Text(tr("Αυτόματη ομαδοποίηση από τα ονόματα","Auto-group by station names"))}
+     Text(tr("Βάζει ομάδα μόνο στους σταθμούς που δεν έχουν, π.χ. «ΣΠΟΡ FM» → Αθλητικά, «1055Rock» → Rock. Μπορείς να το αλλάξεις μετά.","Only fills stations without a group, e.g. “Sport FM” → Sports, “1055Rock” → Rock. You can change it afterwards."),fontSize=13.sp,color=colors.onSurfaceVariant)
+     SettingSwitch(tr("Τιμόνι μέσα στην ομάδα","Steering wheel within group"),tr("Επόμενος / προηγούμενος αλλάζει μόνο σταθμούς της ομάδας που έχεις επιλέξει.","Next / previous only switches between stations of the selected group."),skipGroup) {skipGroup=it;store.skipInGroup=it}
     }}
     item {OutlinedButton(onSystem,Modifier.fillMaxWidth().heightIn(min=60.dp)){Text(tr("Ρυθμίσεις συσκευής / μπαταρίας","Device / battery settings"))}}
    }

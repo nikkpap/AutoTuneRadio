@@ -20,6 +20,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,6 +104,7 @@ class MainActivity: ComponentActivity() {
   var name by remember { mutableStateOf("") }
   var url by remember { mutableStateOf("") }
   var logo by remember { mutableStateOf("") }
+  var group by remember { mutableStateOf("") }
   var reorderId by remember {mutableStateOf("")}
   var editing by remember { mutableStateOf<Station?>(null) }
   var pending by remember { mutableStateOf<List<Station>>(emptyList()) }
@@ -213,19 +216,21 @@ class MainActivity: ComponentActivity() {
   }) { padding ->
    if(tab==0) CarRadioScreen(Modifier.padding(padding),store.playerRight,stations,current,playing,active,status,broadcast,buffered,query,{query=it},
     showBars=remember(revision) {store.showBars},sleepAt=sleepAt,hasHistory=history.isNotEmpty(),
+    activeGroup=remember(revision) {store.activeGroup},onGroup={store.activeGroup=it},
     onPlay={ (stations.find { it.id==current } ?: store.startup() ?: stations.firstOrNull())?.let(::play) },
     onPause={ service("PAUSE") },
     onNext={ service("NEXT") },onPrevious={ service("PREVIOUS") },
     onSearch={searchOpen=true},onSettings={settingsPage=0;settingsRequest++;tab=1},
     onSleep={dialog="sleep"},onHistory={dialog="history"},
     onReorder={reorderId=it.id},
-    onStation={play(it)},onEdit={editing=it;name=it.name;url=it.url;logo=it.logo;dialog="add"},
+    onStation={play(it)},onEdit={editing=it;name=it.name;url=it.url;logo=it.logo;group=it.group;dialog="add"},
     )
    else CarSettingsScreen(Modifier.padding(padding),store,stations,revision,
     onFolder={folderPicking=true;runCatching {folderPicker.launch(null)}.onFailure {folderPicking=false;DebugLog.error("FOLDER_PICKER",it);message(tr("Δεν υπάρχει επιλογέας φακέλου στη συσκευή.","No folder picker is available on this device."))}},onSaverPreview={DebugLog.event("SAVER","preview");saverOpen=true},onDebug={toggleDebug(it)},
-    onAdd={editing=null;name="";url="";logo="";dialog="add"},onImport={dialog="import"},
+    onAdd={editing=null;name="";url="";logo="";group=store.activeGroup.takeIf {it!=Groups.NONE}.orEmpty();dialog="add"},onImport={dialog="import"},
     onExportM3u={runCatching {exporter.launch("AutoTuneRadio-stations.m3u")}.onFailure {DebugLog.error("EXPORT",it);message(noPicker)}},onExportTxt={runCatching {txtExporter.launch("AutoTuneRadio-stations.txt")}.onFailure {DebugLog.error("EXPORT",it);message(noPicker)}},
-    onSystem={runCatching {startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))}.onFailure {message(tr("Δεν ήταν δυνατό να ανοίξουν οι ρυθμίσεις Android.","Could not open Android settings."))}},initialPage=settingsPage,pageRequest=settingsRequest,onUpdates={dialog="update"})
+    onSystem={runCatching {startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:$packageName")))}.onFailure {message(tr("Δεν ήταν δυνατό να ανοίξουν οι ρυθμίσεις Android.","Could not open Android settings."))}},initialPage=settingsPage,pageRequest=settingsRequest,onUpdates={dialog="update"},
+    onAutoGroup={val (list,n)=Groups.autoAssign(stations);if(n>0) {stations=list;store.save(list)};message(if(n>0) tr("Μπήκε ομάδα σε $n σταθμούς","$n stations grouped") else tr("Δεν βρέθηκε ομάδα από τα ονόματα. Όρισέ την από το ⋮.","No group found from the names. Set it from ⋮."))})
   }
   if(saverOpen) ScreenSaver(this@MainActivity,store,stations.find {it.id==current}?.name.orEmpty(),broadcast) {DebugLog.event("SAVER","dismiss");saverOpen=false;lastTouch=SystemClock.elapsedRealtime()}
   if(reorderId.isNotEmpty()) {
@@ -256,10 +261,11 @@ class MainActivity: ComponentActivity() {
    OutlinedTextField(name,{name=it},label={Text(tr("Όνομα","Name"))},singleLine=true)
    OutlinedTextField(url,{url=it},label={Text("Stream URL (HTTP/HTTPS)")},singleLine=true)
    OutlinedTextField(logo,{logo=it},label={Text(tr("URL λογότυπου (προαιρετικό)","Logo URL (optional)"))},singleLine=true)
+   GroupPicker(group,Groups.used(stations)) {group=it}
    Text(tr("Δέχεται απευθείας stream, HLS .m3u8 ή σύνδεσμο .pls/.m3u του σταθμού.","Accepts a direct stream, HLS .m3u8 or the station's .pls/.m3u link."),fontSize=12.sp)
   }},confirmButton={TextButton({
    if(name.isBlank() || !Playlist.valid(url.trim()) || (logo.isNotBlank() && !Playlist.valid(logo.trim()))) message(tr("Συμπλήρωσε όνομα και έγκυρα HTTP/HTTPS URLs","Enter a name and valid HTTP/HTTPS URLs")) else {
-    val s=Station(editing?.id ?: java.util.UUID.randomUUID().toString(),name.trim(),url.trim(),logo.trim()); val list=stations.filterNot { it.id==s.id }
+    val s=Station(editing?.id ?: java.util.UUID.randomUUID().toString(),name.trim(),url.trim(),logo.trim(),Groups.normalize(group)); val list=stations.filterNot { it.id==s.id }
     if(list.any { it.url==s.url }) message(tr("Αυτό το URL υπάρχει ήδη","This URL already exists")) else { stations=if(editing==null) stations+s else stations.map {if(it.id==s.id) s else it};store.save(stations);dialog="" }
    }
   }) { Text(tr("Αποθήκευση","Save")) }},dismissButton={Row { if(editing!=null) TextButton({dialog="delete"}) { Text(tr("Διαγραφή","Delete"),color=MaterialTheme.colorScheme.error) }; TextButton({dialog=""}) { Text(tr("Άκυρο","Cancel")) } }})
@@ -333,4 +339,18 @@ class MainActivity: ComponentActivity() {
    }
   }
  },confirmButton={TextButton(onDismiss) {Text(tr("Κλείσιμο","Close"))}},dismissButton={if(history.isNotEmpty()) TextButton(onClear) {Text(tr("Καθαρισμός","Clear"))}})
+}
+
+/** Pick a preset genre, an existing custom group, or type a new one. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable fun GroupPicker(value:String,used:List<String>,onChange:(String)->Unit) {
+ val options=(listOf("")+Groups.presets.map {it.key}+used).distinct()
+ val custom=value.isNotBlank() && Groups.presets.none {it.key==value}
+ Text(tr("Ομάδα","Group"),fontWeight=FontWeight.Bold)
+ FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+  options.forEach {g ->
+   FilterChip(selected=g==value,onClick={onChange(g)},label={Text(if(g.isBlank()) tr("Καμία","None") else Groups.label(g))})
+  }
+ }
+ OutlinedTextField(if(custom) value else "",{onChange(it)},label={Text(tr("Άλλη ομάδα (γράψε όνομα)","Other group (type a name)"))},singleLine=true)
 }
