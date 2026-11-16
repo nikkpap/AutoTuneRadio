@@ -7,6 +7,26 @@ Internet ραδιόφωνο για οθόνες αυτοκινήτου (Android 
 
 **Κατέβασμα:** [τελευταία έκδοση (Releases)](https://github.com/nikkpap/AutoTuneRadio/releases/latest) → αρχείο `AutoTuneRadio-v….apk`.
 
+<p align="center">
+  <img src="docs/screenshots/player-ocean.png" width="820" alt="Player — θέμα Ωκεανός">
+</p>
+
+## Εικόνες
+
+| | |
+|---|---|
+| ![Ομάδες σταθμών](docs/screenshots/player-groups.png) | ![Θέμα Ηλιοβασίλεμα](docs/screenshots/theme-sunset.png) |
+| **Ομάδες σταθμών** — κουμπιά Όλοι / Αθλητικά / Rock / Pop… | **Θέμα «Ηλιοβασίλεμα»** — τα χρώματα αλλάζουν αμέσως |
+| ![Θέμα Ημέρα](docs/screenshots/theme-daylight.png) | ![English UI](docs/screenshots/english-royal.png) |
+| **Θέμα «Ημέρα»** (ανοιχτό) | **English** — θέμα «Royal purple» |
+| ![Ρυθμίσεις θεμάτων](docs/screenshots/settings-themes.png) | ![Ρυθμίσεις σταθμών](docs/screenshots/settings-stations.png) |
+| **Ρυθμίσεις → Οθόνη** — 11 θέματα, Material You, χρώματα σταθμού | **Ρυθμίσεις → Σταθμοί** — εισαγωγή, εξαγωγή, ομάδες |
+| ![Σχετικά](docs/screenshots/settings-about.png) | ![Screensaver](docs/screenshots/screensaver.png) |
+| **Σχετικά** — Ελληνικά / English, αυτόματες ενημερώσεις | **Screensaver** — ρολόι και τραγούδι που παίζει |
+
+<sub>Οι εικόνες βγαίνουν αυτόματα από την πραγματική εφαρμογή σε emulator 1280×800
+(GitHub Actions → «README screenshots» → Run workflow).</sub>
+
 ---
 
 ## Νέα έκδοση = push στο GitHub (όχι build στον υπολογιστή)

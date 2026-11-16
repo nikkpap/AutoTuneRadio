@@ -44,7 +44,7 @@ shot()   { adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS 
 prefs lang=el theme=ocean activeGroup= saverOn=false last=s2
 launch; play s2; shot player-ocean
 
-# 2. Group selected (Chill)
+# 2. Group selected (Chill) — the chip row scrolls to the selected group
 prefs lang=el theme=ocean activeGroup=chill saverOn=false last=s2
 launch; play s2; shot player-groups
 

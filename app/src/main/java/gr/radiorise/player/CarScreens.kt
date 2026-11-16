@@ -154,7 +154,10 @@ import coil.compose.SubcomposeAsyncImage
    Column(pane,verticalArrangement=Arrangement.spacedBy(8.dp)) {
     if(groups.isNotEmpty()) {
      val chips=listOf("")+groups+(if(hasUngrouped) listOf(Groups.NONE) else emptyList())
-     LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(horizontal=2.dp)) {
+     val chipState=rememberLazyListState()
+     // Keep the selected group visible (it can be far right when there are many groups).
+     LaunchedEffect(group,chips) {val i=chips.indexOf(group);if(i>0) chipState.animateScrollToItem((i-1).coerceAtLeast(0))}
+     LazyRow(state=chipState,horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(horizontal=2.dp)) {
       items(chips,key={it}) {g ->
        val count=stations.count {Groups.matches(it,g)}
        FilterChip(selected=g==group,onClick={onGroup(g)},label={Text("${Groups.label(g)} · $count",fontSize=15.sp,maxLines=1)},modifier=Modifier.height(44.dp),
