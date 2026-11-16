@@ -15,6 +15,12 @@ adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 adb shell cmd uimode night yes
+# The emulator's launcher is slow on CI and pops "isn't responding" dialogs over the app: let it settle,
+# hide error dialogs and disable the launcher (this also removes the tablet taskbar).
+sleep 45
+adb shell settings put global hide_error_dialogs 1
+adb shell pm disable-user --user 0 com.google.android.apps.nexuslauncher 2>/dev/null || true
+adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
 adb install -r -g "$APK"
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS 2>/dev/null || true
 adb shell cmd appops set $PKG REQUEST_INSTALL_PACKAGES deny 2>/dev/null || true
@@ -32,7 +38,7 @@ prefs() {   # prefs key=value ... → stop app, write prefs
 }
 launch() { adb shell am start -W -n $PKG/.MainActivity "$@" >/dev/null; sleep 4; }
 play()   { adb shell am start-foreground-service -n $PKG/.RadioService -a PLAY --es id "$1" >/dev/null; sleep 14; }
-shot()   { adb exec-out screencap -p > "$OUT/$1.png"; echo "saved $1"; }
+shot()   { adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1; sleep 1; adb exec-out screencap -p > "$OUT/$1.png"; echo "saved $1"; }
 
 # 1. Player — Ocean theme, Greek, playing
 prefs lang=el theme=ocean activeGroup= saverOn=false last=s2
