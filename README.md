@@ -1,4 +1,6 @@
-# AutoTune Radio
+<p align="center"><img src="docs/images/logo.png" width="160" alt="AutoTune Radio"></p>
+
+<h1 align="center">AutoTune Radio</h1>
 
 Internet ραδιόφωνο για οθόνες αυτοκινήτου (Android 9+), με Android Auto, equalizer, screensaver, ημερολόγιο,
 ελληνικά / English και δυναμικά θέματα. Package: `gr.radiorise.player`.
