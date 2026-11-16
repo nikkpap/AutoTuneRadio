@@ -47,7 +47,10 @@ import java.util.Locale
 class MainActivity: ComponentActivity() {
  private var openCalendar by mutableStateOf(false)
  private var openUpdate by mutableStateOf(false)
- override fun onNewIntent(intent:Intent) {super.onNewIntent(intent);setIntent(intent);openCalendar=intent.action=="OPEN_CALENDAR";openUpdate=intent.action=="OPEN_UPDATE"}
+ override fun onNewIntent(intent:Intent) {super.onNewIntent(intent);setIntent(intent);openCalendar=intent.action=="OPEN_CALENDAR";openUpdate=intent.action=="OPEN_UPDATE";openSettings=settingsPageOf(intent)}
+ /** OPEN_SETTINGS with extra "page" (0–6) opens that Settings tab — used by shortcuts and the README screenshot script. */
+ private var openSettings by mutableIntStateOf(-1)
+ private fun settingsPageOf(i:Intent)=if(i.action=="OPEN_SETTINGS") i.getIntExtra("page",0).coerceIn(0,6) else -1
  private var lastResume by mutableLongStateOf(0L)
  private var foreground by mutableStateOf(false)
  override fun onResume() {
@@ -63,6 +66,7 @@ class MainActivity: ComponentActivity() {
   super.onCreate(state)
   DebugLog.event("APP","onCreate restored=${state!=null}")
   openCalendar=intent.action=="OPEN_CALENDAR"
+  openSettings=settingsPageOf(intent)
   openUpdate=intent.action=="OPEN_UPDATE"
   freshLaunch=state==null
   setContent {
@@ -183,6 +187,7 @@ class MainActivity: ComponentActivity() {
    val error=prefs.getString("bootError",null)
    if(error!=null) { message(tr("Το Android εμπόδισε την αυτόματη εκκίνηση. Άνοιξε τον σταθμό χειροκίνητα.","Android blocked the automatic start. Start the station manually.")); prefs.edit().remove("bootError").apply() }
   }
+  LaunchedEffect(openSettings) {if(openSettings>=0) {tab=1;settingsPage=openSettings;settingsRequest++;saverOpen=false;dialog="";openSettings=-1}}
   // Tapped the "update ready" notification.
   LaunchedEffect(openUpdate) {if(openUpdate) {openUpdate=false;tab=0;saverOpen=false;dialog="update";Updater.installWhenIdle(this@MainActivity)}}
   // Automatic updates: installs by itself as soon as the radio stops playing.
