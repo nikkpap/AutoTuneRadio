@@ -132,7 +132,7 @@ push στο main
    Αποτυχία → logs: `gh api repos/nikkpap/AutoTuneRadio/actions/jobs/<job_id>/logs`
    (ψάξε `e: ` για Kotlin, `Error:` / `Lint found errors` για lint), διόρθωσε, νέο push.
    Το lint έχει `abortOnError = true` — λάθη lint σταματούν την έκδοση (σωστά).
-7. Αναφορά στον χρήστη: ποια έκδοση βγήκε (`v0.23.X`) και τι αλλάζει για αυτόν.
+7. Αναφορά στον χρήστη: ποια έκδοση βγήκε (`v0.24.X`) και τι αλλάζει για αυτόν.
 
 ---
 
