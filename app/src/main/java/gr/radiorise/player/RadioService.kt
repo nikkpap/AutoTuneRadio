@@ -164,7 +164,8 @@ class RadioService: android.service.media.MediaBrowserService() {
     // Navigation prompts / short sounds: lower the volume instead of stopping the live stream.
     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> if(store.duckNav && wanted && !interrupted) { ducked=true; applyVolume() } else transientLoss()
     AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> transientLoss()
-    AudioManager.AUDIOFOCUS_LOSS -> { hasFocus=false; interrupted=false; wanted=false; ducked=false; applyVolume(); cancelTask(); resolveJob?.cancel(); player.pause(); status.value=tr("Σε παύση","Paused"); update() }
+    // Another app (Spotify, YouTube…) took the sound for good: stop completely — close the stream and drop the buffer.
+    AudioManager.AUDIOFOCUS_LOSS -> stopForOtherApp("focus")
    }
   },handler).build()
   session=MediaSession(this,"AutoTune Radio")
@@ -195,6 +196,37 @@ class RadioService: android.service.media.MediaBrowserService() {
   getSharedPreferences("radio",0).registerOnSharedPreferenceChangeListener(preferenceListener)
   handler.post(bufferPoll)
   registerNetwork()
+  registerPlaybackWatch()
+ }
+
+ /** Full stop because another app plays: like Pause, plus the connection is closed and the buffer emptied. */
+ private fun stopForOtherApp(reason:String) {
+  if(destroyed) return
+  DebugLog.event("FOCUS","stop: other app plays ($reason)")
+  pause(); player.stop(); bufferedSeconds.value=0
+  status.value=tr("Σταμάτησε: παίζει άλλη εφαρμογή","Stopped: another app is playing"); update()
+ }
+
+ // Some car head units let apps play without asking for audio focus. Watch the system's active players:
+ // if another media player starts while we play, stop as if it had taken the focus.
+ private var playbackCallback:AudioManager.AudioPlaybackCallback?=null
+ private val otherAppCheck=Runnable {
+  if(destroyed || !store.stopForOthers || !player.isPlaying) return@Runnable
+  val media=runCatching {audio.activePlaybackConfigurations.count {isMedia(it.audioAttributes.usage)}}.getOrDefault(0)
+  if(media>=2) stopForOtherApp("playback $media")
+ }
+ private fun isMedia(usage:Int)=usage==AudioAttributes.USAGE_MEDIA || usage==AudioAttributes.USAGE_UNKNOWN
+ private fun registerPlaybackWatch() {
+  val cb=object:AudioManager.AudioPlaybackCallback() {
+   override fun onPlaybackConfigChanged(configs:MutableList<android.media.AudioPlaybackConfiguration>) {
+    if(!store.stopForOthers || !player.isPlaying) return
+    if(configs.count {isMedia(it.audioAttributes.usage)}>=2) {
+     // Re-check after a moment so short overlaps (our own reconnect, a sound effect) are ignored.
+     handler.removeCallbacks(otherAppCheck);handler.postDelayed(otherAppCheck,1500)
+    }
+   }
+  }
+  runCatching {audio.registerAudioPlaybackCallback(cb,handler);playbackCallback=cb}.onFailure {DebugLog.error("PLAYBACK_WATCH",it)}
  }
 
  private fun transientLoss() {
@@ -419,6 +451,7 @@ class RadioService: android.service.media.MediaBrowserService() {
 
  override fun onDestroy() {
   destroyed=true;scope.cancel();DebugLog.event("SERVICE","onDestroy");DebugLog.flush()
+  playbackCallback?.let {cb -> runCatching {audio.unregisterAudioPlaybackCallback(cb)}}
   networkCallback?.let {cb -> runCatching {getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb)}}
   getSharedPreferences("radio",0).unregisterOnSharedPreferenceChangeListener(preferenceListener); handler.removeCallbacksAndMessages(null); releaseEqualizer(); equalizerState.value=EqState(); broadcast.value=""; bufferedSeconds.value=0; cancelTask(); wanted=false; interrupted=false
   audio.abandonAudioFocusRequest(focus);player.removeListener(playerListener); player.release(); session.release(); playing.value=false; active.value=false; sleepAt.value=0; status.value=idleText(); stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy()

@@ -264,6 +264,7 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
  var resume by remember {mutableStateOf(store.resume)};var delay by remember {mutableIntStateOf(store.delay)}
  var buffer by remember {mutableIntStateOf(store.buffer)};var chosen by remember {mutableStateOf(store.chosen)}
  var duck by remember {mutableStateOf(store.duckNav)}
+ var stopOthers by remember {mutableStateOf(store.stopForOthers)}
  var bars by remember {mutableStateOf(store.showBars)}
  var screenOn by remember {mutableStateOf(store.keepScreenOn)}
  var notifBar by remember {mutableStateOf(store.notifProgress)}
@@ -307,6 +308,7 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
     item {SectionCard {EqualizerSettings(store)}}
     item {SectionCard {
      SettingSwitch(tr("Χαμήλωμα για πλοήγηση","Lower volume for navigation"),tr("Οι φωνητικές οδηγίες χαμηλώνουν την ένταση αντί να σταματούν το live stream.","Voice directions lower the volume instead of stopping the live stream."),duck) {duck=it;store.duckNav=it}
+     SettingSwitch(tr("Σταμάτημα όταν παίζει άλλη εφαρμογή","Stop when another app plays"),tr("Spotify, YouTube κ.λπ.: το AutoTune σταματά εντελώς και αδειάζει το buffer, ακόμα και σε οθόνες αυτοκινήτου που δεν το ζητούν σωστά.","Spotify, YouTube etc.: AutoTune stops completely and empties the buffer, even on car screens that do not ask properly."),stopOthers) {stopOthers=it;store.stopForOthers=it}
      SettingSwitch(tr("Μετά την κλήση","After a call"),tr("Επιστροφή στον ίδιο live σταθμό","Return to the same live station"),resume){resume=it;store.resume=it}
      SettingSwitch(tr("Αντιστροφή κουμπιών τιμονιού","Reverse steering-wheel buttons"),tr("Επόμενος ↔ προηγούμενος μόνο στις εξωτερικές εντολές media. Τα κουμπιά στην οθόνη παραμένουν ίδια.","Next ↔ previous only for external media commands. On-screen buttons stay the same."),reverseWheel) {reverseWheel=it;store.reverseWheel=it}
     }}
