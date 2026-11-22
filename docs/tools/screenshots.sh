@@ -40,7 +40,7 @@ launch() { adb shell am start -W -n $PKG/.MainActivity "$@" >/dev/null; sleep 4;
 play()   { adb shell am start-foreground-service -n $PKG/.RadioService -a PLAY --es id "$1" >/dev/null; sleep 14; }
 shot()   { adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1; sleep 1; adb exec-out screencap -p > "$OUT/$1.png"; echo "saved $1"; }
 
-# 1. Player — Ocean theme, Greek, playing
+# 1. Player — Ocean theme, Greek, playing (clock bottom-left, buffer gauge next to the sound bars)
 prefs lang=el theme=ocean activeGroup= saverOn=false last=s2
 launch; play s2; shot player-ocean
 

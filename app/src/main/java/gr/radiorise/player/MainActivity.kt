@@ -223,7 +223,7 @@ class MainActivity: ComponentActivity() {
    }
   }) { padding ->
    if(tab==0) CarRadioScreen(Modifier.padding(padding),store.playerRight,stations,current,playing,active,status,broadcast,buffered,query,{query=it},
-    showBars=remember(revision) {store.showBars},sleepAt=sleepAt,hasHistory=history.isNotEmpty(),
+    showBars=remember(revision) {store.showBars},sleepAt=sleepAt,hasHistory=history.isNotEmpty(),bufferTarget=remember(revision) {store.buffer},
     activeGroup=remember(revision) {store.activeGroup},onGroup={store.activeGroup=it},groupsOn=remember(revision) {store.groupsOn},
     onPlay={ (stations.find { it.id==current } ?: store.startup() ?: stations.firstOrNull())?.let(::play) },
     onPause={ service("PAUSE") },

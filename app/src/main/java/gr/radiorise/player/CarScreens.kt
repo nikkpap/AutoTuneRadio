@@ -2,6 +2,7 @@
 package gr.radiorise.player
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -62,7 +63,7 @@ import coil.compose.SubcomposeAsyncImage
 }
 
 @Composable fun CarRadioScreen(modifier:Modifier,playerRight:Boolean,stations:List<Station>,current:String,playing:Boolean,active:Boolean,status:String,broadcast:String,buffered:Long,query:String,onQuery:(String)->Unit,
- showBars:Boolean,sleepAt:Long,hasHistory:Boolean,activeGroup:String,onGroup:(String)->Unit,groupsOn:Boolean,
+ showBars:Boolean,sleepAt:Long,hasHistory:Boolean,bufferTarget:Int,activeGroup:String,onGroup:(String)->Unit,groupsOn:Boolean,
  onPlay:()->Unit,onPause:()->Unit,onNext:()->Unit,onPrevious:()->Unit,onSearch:()->Unit,onSettings:()->Unit,onSleep:()->Unit,onHistory:()->Unit,onReorder:(Station)->Unit,onStation:(Station)->Unit,onEdit:(Station)->Unit) {
  val context=LocalContext.current
  val listState=rememberLazyListState()
@@ -127,7 +128,10 @@ import coil.compose.SubcomposeAsyncImage
        Text(broadcast.ifBlank { tr("Ο σταθμός δεν στέλνει τίτλο εκπομπής","The station sends no programme title") },
         Modifier.fillMaxWidth().basicMarquee(iterations=Int.MAX_VALUE).clickable(enabled=hasHistory,onClick=onHistory),
         fontSize=if(compact) 14.sp else 17.sp,color=colors.onSurfaceVariant,maxLines=1)
-       if(showBars) VisualizerBars(playing,colors.primary,Modifier.height(if(compact) 14.dp else 20.dp).padding(top=4.dp))
+       Row(Modifier.padding(top=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+        if(showBars) VisualizerBars(playing,colors.primary,Modifier.height(if(compact) 14.dp else 20.dp))
+        BufferGauge(buffered,bufferTarget,active,compact)
+       }
       }
      }
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
@@ -140,7 +144,7 @@ import coil.compose.SubcomposeAsyncImage
      }
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
       Column(Modifier.weight(1f)) {
-       Text("Buffer: $buffered s",fontSize=12.sp,color=colors.onSurfaceVariant)
+       PlayerClock(compact)
       }
       IconButton(onSleep,Modifier.size(48.dp)) {Icon(AppIcons.Timer,tr("Χρονοδιακόπτης ύπνου","Sleep timer"),tint=if(sleepAt>0) colors.primary else colors.onSurface)}
       IconButton(onHistory,Modifier.size(48.dp)) {Icon(AppIcons.MusicNote,tr("Τι έπαιξε","Recently played"),tint=if(hasHistory) colors.onSurface else colors.onSurface.copy(alpha=0.45f))}
@@ -204,6 +208,36 @@ import coil.compose.SubcomposeAsyncImage
   else Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(10.dp)) { if(playerRight) {listPane(Modifier.weight(1f).fillMaxWidth());playerPane(Modifier.weight(1f).fillMaxWidth())} else {playerPane(Modifier.weight(1f).fillMaxWidth());listPane(Modifier.weight(1f).fillMaxWidth())} }
  }
 }
+/** Clock in the player (updates on the minute). */
+@Composable private fun PlayerClock(compact:Boolean) {
+ val fmt=remember(Lang.english) {java.text.SimpleDateFormat("HH:mm",Lang.locale)}
+ var now by remember {mutableStateOf(java.util.Date())}
+ LaunchedEffect(Unit) {while(true) {now=java.util.Date();delay(60_000L-System.currentTimeMillis()%60_000L+50)}}
+ Text(fmt.format(now),fontSize=if(compact) 20.sp else 24.sp,fontWeight=FontWeight.Medium,color=MaterialTheme.colorScheme.onSurface)
+}
+
+/**
+ * Small buffer indicator next to the sound bars: a capsule that fills with the buffered seconds
+ * (full = twice the start buffer). Green-ish when healthy, warm when low, red when empty while connecting.
+ */
+@Composable private fun BufferGauge(seconds:Long,target:Int,active:Boolean,compact:Boolean) {
+ val colors=MaterialTheme.colorScheme
+ val full=maxOf(10,target*2).toFloat()
+ val fraction by animateFloatAsState((seconds/full).coerceIn(0f,1f),tween(700),label="buffer")
+ val tint=when {
+  !active -> colors.onSurfaceVariant.copy(alpha=0.6f)
+  seconds<=0 -> colors.error
+  seconds<target -> colors.tertiary
+  else -> colors.primary
+ }
+ Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+  Box(Modifier.width(if(compact) 34.dp else 44.dp).height(7.dp).clip(RoundedCornerShape(50)).background(colors.onSurface.copy(alpha=0.15f))) {
+   Box(Modifier.fillMaxHeight().fillMaxWidth(fraction).clip(RoundedCornerShape(50)).background(tint))
+  }
+  Text("${seconds}s",fontSize=11.sp,color=tint,maxLines=1)
+ }
+}
+
 @Composable private fun SettingSwitch(title:String,detail:String,value:Boolean,onChange:(Boolean)->Unit) {
  Row(Modifier.fillMaxWidth().heightIn(min=72.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
   Column(Modifier.weight(1f)) {Text(title,fontWeight=FontWeight.Bold,fontSize=18.sp);Text(detail,fontSize=13.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)};Switch(value,onChange)
