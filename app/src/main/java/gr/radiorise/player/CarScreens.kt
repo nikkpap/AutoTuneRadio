@@ -140,8 +140,7 @@ import coil.compose.SubcomposeAsyncImage
      }
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
       Column(Modifier.weight(1f)) {
-       Text(status,fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis,color=colors.onSurfaceVariant)
-       Text("Buffer: $buffered s",fontSize=11.sp,color=colors.onSurfaceVariant.copy(alpha=0.75f))
+       Text("Buffer: $buffered s",fontSize=12.sp,color=colors.onSurfaceVariant)
       }
       IconButton(onSleep,Modifier.size(48.dp)) {Icon(AppIcons.Timer,tr("Χρονοδιακόπτης ύπνου","Sleep timer"),tint=if(sleepAt>0) colors.primary else colors.onSurface)}
       IconButton(onHistory,Modifier.size(48.dp)) {Icon(AppIcons.MusicNote,tr("Τι έπαιξε","Recently played"),tint=if(hasHistory) colors.onSurface else colors.onSurface.copy(alpha=0.45f))}
