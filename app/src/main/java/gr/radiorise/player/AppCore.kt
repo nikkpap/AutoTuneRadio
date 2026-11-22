@@ -38,6 +38,8 @@ class Store(context: Context) {
  var themeSeed: String get() = p.getString("themeSeed","").orEmpty(); set(v) { p.edit().putString("themeSeed",v).apply() }
  /** Lower the radio volume (instead of pausing) while navigation / short prompts speak. */
  var duckNav: Boolean get() = p.getBoolean("duckNav",true); set(v) { p.edit().putBoolean("duckNav",v).apply() }
+ /** Animated progress bar in the system media player (broadcast hour / sleep countdown). */
+ var notifProgress: Boolean get() = p.getBoolean("notifProgress",true); set(v) { p.edit().putBoolean("notifProgress",v).apply() }
  var showBars: Boolean get() = p.getBoolean("showBars",true); set(v) { p.edit().putBoolean("showBars",v).apply() }
  var keepScreenOn: Boolean get() = p.getBoolean("keepScreenOn",false); set(v) { p.edit().putBoolean("keepScreenOn",v).apply() }
  var sleepMinutes: Int get() = p.getInt("sleepMinutes",30).coerceIn(5,180); set(v) { p.edit().putInt("sleepMinutes",v.coerceIn(5,180)).apply() }

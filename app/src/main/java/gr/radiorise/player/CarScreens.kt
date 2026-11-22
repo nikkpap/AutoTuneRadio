@@ -267,6 +267,7 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
  var duck by remember {mutableStateOf(store.duckNav)}
  var bars by remember {mutableStateOf(store.showBars)}
  var screenOn by remember {mutableStateOf(store.keepScreenOn)}
+ var notifBar by remember {mutableStateOf(store.notifProgress)}
  var skipGroup by remember {mutableStateOf(store.skipInGroup)}
  var groupsOn by remember {mutableStateOf(store.groupsOn)}
  val debugOn=remember(revision) {context.getSharedPreferences("radio",0).getBoolean("debugOn",false)}
@@ -322,6 +323,7 @@ private data class ThemeOption(val id:String,val label:String,val swatch:List<Co
     item {SectionCard {ThemePicker(store,revision)}}
     item {SectionCard {
      SettingSwitch(tr("Κινούμενες μπάρες ήχου","Animated sound bars"),tr("Διακοσμητικές μπάρες όσο παίζει ο σταθμός.","Decorative bars while the station plays."),bars) {bars=it;store.showBars=it}
+     SettingSwitch(tr("Κινούμενη μπάρα στην ειδοποίηση","Animated bar in the notification"),tr("Η κυματιστή μπάρα του Android δείχνει την πρόοδο της ώρας εκπομπής ή την αντίστροφη μέτρηση του χρονοδιακόπτη ύπνου.","Android's wavy bar shows the progress of the broadcast hour or the sleep-timer countdown."),notifBar) {notifBar=it;store.notifProgress=it}
      SettingSwitch(tr("Οθόνη πάντα αναμμένη","Keep screen on"),tr("Η οθόνη δεν σβήνει όσο ο player είναι ανοιχτός (χρήσιμο σε οθόνη αυτοκινήτου).","The screen stays on while the player is open (useful on a car display)."),screenOn) {screenOn=it;store.keepScreenOn=it}
     }}
     item {SectionCard {AppShortcutSettings()}}

@@ -54,6 +54,9 @@ class RadioService: android.service.media.MediaBrowserService() {
    if(action in FOREGROUND_ACTIONS) ContextCompat.startForegroundService(c,i) else c.startService(i)
   }
   fun idleText()=tr("Έτοιμο για ακρόαση","Ready to listen")
+  private const val ACTION_SLEEP_CYCLE="gr.radiorise.player.SLEEP_CYCLE"
+  private const val ACTION_CLOSE="gr.radiorise.player.CLOSE"
+  private const val HOUR=3_600_000L
  }
  private lateinit var player: ExoPlayer
  private lateinit var store: Store
@@ -101,6 +104,7 @@ class RadioService: android.service.media.MediaBrowserService() {
    }
   }
   if(key?.startsWith("eq")==true) handler.post { if(equalizer==null && player.audioSessionId>0) attachEqualizer(player.audioSessionId) else applyEqualizer() }
+  if(key=="notifProgress") handler.post {update()}
   if(key=="lang") handler.post {
    createChannel()
    if(!wanted && task==null && !interrupted) status.value=if(waitingNetwork) tr("Αναμονή δικτύου…","Waiting for network…") else idleText()
@@ -172,6 +176,14 @@ class RadioService: android.service.media.MediaBrowserService() {
    override fun onStop() { stopPlayback() }
    override fun onPlayFromMediaId(mediaId:String?,extras:Bundle?) {store.stations().find {it.id==mediaId}?.let {start(it)} ?: mediaError(tr("Ο σταθμός δεν είναι διαθέσιμος.","The station is not available."))}
    override fun onPlayFromSearch(query:String?,extras:Bundle?) {playSearch(query)}
+   override fun onCustomAction(action:String,extras:Bundle?) {
+    when(action) {
+     // Each tap: off → 15 → 30 → 60 → off
+     ACTION_SLEEP_CYCLE -> {val left=if(sleepAt.value>0) (sleepAt.value-SystemClock.elapsedRealtime())/60_000+1 else 0
+      setSleep(when {left<=0 -> 15; left<=15 -> 30; left<=30 -> 60; else -> 0})}
+     ACTION_CLOSE -> stopPlayback()
+    }
+   }
   }); session.isActive=true
   session.setSessionActivity(PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
   setSessionToken(session.sessionToken)
@@ -350,18 +362,18 @@ class RadioService: android.service.media.MediaBrowserService() {
  } }
  private fun setSleep(minutes:Int) {
   handler.removeCallbacks(sleepTask); handler.removeCallbacks(fadeStep); fadeFactor=1f; applyVolume()
-  if(minutes<=0 || !(wanted || task!=null || interrupted)) { sleepAt.value=0; if(!foregroundStarted) stopSelf(); return }
-  sleepAt.value=SystemClock.elapsedRealtime()+minutes*60_000L
+  if(minutes<=0 || !(wanted || task!=null || interrupted)) { sleepAt.value=0; sleepTotal=0; update(); if(!foregroundStarted) stopSelf(); return }
+  sleepAt.value=SystemClock.elapsedRealtime()+minutes*60_000L;sleepTotal=minutes*60_000L
   handler.postDelayed(sleepTask,minutes*60_000L)
-  DebugLog.event("SLEEP","set minutes=$minutes")
+  DebugLog.event("SLEEP","set minutes=$minutes");update()
  }
- private fun cancelSleep() { handler.removeCallbacks(sleepTask); handler.removeCallbacks(fadeStep); fadeFactor=1f; sleepAt.value=0 }
+ private fun cancelSleep() { handler.removeCallbacks(sleepTask); handler.removeCallbacks(fadeStep); fadeFactor=1f; sleepAt.value=0; sleepTotal=0 }
 
  private fun pi(action:String)=PendingIntent.getService(this,action.hashCode(),Intent(this,RadioService::class.java).setAction(action),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
  private fun notification():Notification {
   val open=PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   val busy=wanted || task!=null
-  return Notification.Builder(this,"radio").setStyle(Notification.MediaStyle().setMediaSession(session.sessionToken).setShowActionsInCompactView(0,1,2)).setSmallIcon(android.R.drawable.ic_media_play).setContentTitle(station?.name ?: "AutoTune Radio").setContentText(broadcast.value.ifBlank { status.value }).setLargeIcon(artwork).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(busy)
+  return Notification.Builder(this,"radio").setStyle(Notification.MediaStyle().setMediaSession(session.sessionToken).setShowActionsInCompactView(0,1,2)).setSmallIcon(R.drawable.ic_notif_app).setContentTitle(broadcast.value.ifBlank { station?.name ?: "AutoTune Radio" }).setContentText(if(broadcast.value.isNotBlank()) station?.name.orEmpty() else status.value).setLargeIcon(artwork).setContentIntent(open).setOnlyAlertOnce(true).setOngoing(busy)
    .addAction(android.R.drawable.ic_media_previous,tr("Προηγούμενος","Previous"),pi("PREVIOUS"))
    .addAction(if(busy) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,if(busy) tr("Παύση","Pause") else tr("Αναπαραγωγή","Play"),pi(if(busy) "PAUSE" else "RESUME"))
    .addAction(android.R.drawable.ic_media_next,tr("Επόμενος","Next"),pi("NEXT"))
@@ -372,10 +384,39 @@ class RadioService: android.service.media.MediaBrowserService() {
  private fun update() {
   if(destroyed) return
   publishActive()
-  session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY_FROM_MEDIA_ID or PlaybackState.ACTION_PLAY_FROM_SEARCH or PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS).setState(if(player.isPlaying) PlaybackState.STATE_PLAYING else if(wanted && !interrupted) PlaybackState.STATE_BUFFERING else if(station==null) PlaybackState.STATE_NONE else PlaybackState.STATE_PAUSED,0,if(player.isPlaying) 1f else 0f).build())
-  station?.let { session.setMetadata(MediaMetadata.Builder().putString(MediaMetadata.METADATA_KEY_TITLE,broadcast.value.ifBlank { it.name }).putString(MediaMetadata.METADATA_KEY_ARTIST,it.name).putString(MediaMetadata.METADATA_KEY_MEDIA_ID,it.id).putString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI,it.logo).putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI,it.logo).putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON,artwork).putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART,artwork).build()) }
+  val (position,duration)=progress()
+  val sleepLeft=if(sleepAt.value>0) ((sleepAt.value-SystemClock.elapsedRealtime())/60_000+1).coerceAtLeast(1) else 0
+  session.setPlaybackState(PlaybackState.Builder().setActions(PlaybackState.ACTION_PLAY_FROM_MEDIA_ID or PlaybackState.ACTION_PLAY_FROM_SEARCH or PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_STOP or PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS)
+   .setState(if(player.isPlaying) PlaybackState.STATE_PLAYING else if(wanted && !interrupted) PlaybackState.STATE_BUFFERING else if(station==null) PlaybackState.STATE_NONE else PlaybackState.STATE_PAUSED,position,if(player.isPlaying) 1f else 0f,SystemClock.elapsedRealtime())
+   // Extra buttons in the Android 13+ media player and Android Auto (like Spotify's shuffle / +).
+   .addCustomAction(PlaybackState.CustomAction.Builder(ACTION_SLEEP_CYCLE,if(sleepLeft>0) tr("Ύπνος σε $sleepLeft′","Sleep in $sleepLeft′") else tr("Χρονοδιακόπτης ύπνου","Sleep timer"),R.drawable.ic_notif_timer).build())
+   .addCustomAction(PlaybackState.CustomAction.Builder(ACTION_CLOSE,tr("Κλείσιμο","Close"),R.drawable.ic_notif_close).build())
+   .build())
+  scheduleProgressRefresh(position,duration)
+  // Title = song when the station sends one; second line = station (never the station name twice).
+  station?.let { val song=broadcast.value.isNotBlank(); session.setMetadata(MediaMetadata.Builder().putLong(MediaMetadata.METADATA_KEY_DURATION,duration).putString(MediaMetadata.METADATA_KEY_TITLE,if(song) broadcast.value else it.name).putString(MediaMetadata.METADATA_KEY_ARTIST,if(song) it.name else liveSubtitle(it)).putString(MediaMetadata.METADATA_KEY_MEDIA_ID,it.id).putString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI,it.logo).putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI,it.logo).putBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON,artwork).putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART,artwork).build()) }
   if(foregroundStarted && (Build.VERSION.SDK_INT<33 || ContextCompat.checkSelfPermission(this,android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED)) getSystemService(NotificationManager::class.java).notify(1,notification())
  }
+ /** Second line when the station sends no song title: group (e.g. Rock) or "Live radio". */
+ private fun liveSubtitle(s:Station)=if(s.group.isNotBlank()) "LIVE · "+Groups.label(s.group) else tr("LIVE · Διαδικτυακό ραδιόφωνο","LIVE · Internet radio")
+
+ // ---- Progress bar in the system media player ----
+ // Android draws its animated (wavy) progress bar only for media with a duration. Live radio has none, so we show
+ // something real: the sleep-timer countdown when it is set, otherwise the progress of the current broadcast hour.
+ private var sleepTotal=0L
+ private val progressTick=Runnable { update() }
+ private fun progress():Pair<Long,Long> {
+  if(!store.notifProgress) return 0L to 0L
+  val now=SystemClock.elapsedRealtime()
+  if(sleepAt.value>0 && sleepTotal>0) return (sleepTotal-(sleepAt.value-now)).coerceIn(0,sleepTotal) to sleepTotal
+  val wall=System.currentTimeMillis();val local=wall+java.util.TimeZone.getDefault().getOffset(wall)
+  return Math.floorMod(local,HOUR) to HOUR
+ }
+ private fun scheduleProgressRefresh(position:Long,duration:Long) {
+  handler.removeCallbacks(progressTick)
+  if(duration>0 && player.isPlaying) handler.postDelayed(progressTick,(duration-position).coerceIn(1_000,HOUR)+250)
+ }
+
  override fun onDestroy() {
   destroyed=true;scope.cancel();DebugLog.event("SERVICE","onDestroy");DebugLog.flush()
   networkCallback?.let {cb -> runCatching {getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(cb)}}
