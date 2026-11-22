@@ -60,6 +60,8 @@ sealed interface UpdateState {
  *  • checks when the app opens (at most every 30 min) and every 6 hours in the background,
  *  • downloads the APK by itself (SHA-256 verified),
  *  • installs it by itself when the radio is not playing.
+ *  • while the app is on screen it only offers "Install now" (installing closes the app); the automatic install
+ *    happens when the app goes to the background or from the 6-hour background check.
  * Android 12+ installs silently once the app has updated itself one time; older Android shows its confirmation
  * screen (or a notification when the app is in the background). The APK must be signed with the same key.
  */
@@ -210,6 +212,8 @@ object Updater {
  fun installWhenIdle(c:Context) {
   val ready=state.value as? UpdateState.Ready ?: return
   if(RadioService.active.value) {DebugLog.event("UPDATE","deferred: radio is playing");return}
+  // Installing replaces (closes) the running app: while the user is looking at it, the app offers a button instead.
+  if(foreground) {DebugLog.event("UPDATE","deferred: app on screen");return}
   if(ready.needsPermission && !canInstall(c)) {notifyReady(c.applicationContext,ready.release);return}
   install(c)
  }

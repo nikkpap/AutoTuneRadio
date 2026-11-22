@@ -31,7 +31,7 @@ signed APK → publishes a Release → installed apps update themselves (OTA). D
 push στο main
   └─► GitHub Actions «Build & Release»
         1. Επαναφορά κλειδιού από το secret SIGNING_KEYSTORE_BASE64 → app/autotune-debug.keystore
-        2. Έκδοση = appVersionBase (gradle.properties) + "." + github.run_number   π.χ. 0.23.11
+        2. Έκδοση = appVersionBase (gradle.properties) + "." + πλήθος commits   π.χ. 0.24.19
         3. verification/run-core-checks.sh            (Java checks)
         4. ./gradlew assembleDebug testDebugUnitTest lintDebug
         5. dist/AutoTuneRadio-v<έκδοση>.apk + SHA256SUMS.txt
@@ -40,7 +40,8 @@ push στο main
         • ελέγχει api.github.com/repos/nikkpap/AutoTuneRadio/releases/latest
           σε κάθε άνοιγμα (≥30′) και κάθε 6 ώρες (WorkManager)
         • κατεβάζει το πρώτο asset *.apk, ελέγχει μέγεθος + SHA-256 (πεδίο "digest")
-        • εγκαθιστά με PackageInstaller — ΠΟΤΕ όσο παίζει το ραδιόφωνο
+        • εγκαθιστά με PackageInstaller — ΠΟΤΕ όσο παίζει το ραδιόφωνο ή όσο η εφαρμογή είναι στην οθόνη
+          (τότε δείχνει «Εγκατάσταση τώρα»· η αυτόματη γίνεται όταν βγεις από την εφαρμογή ή στο παρασκήνιο)
 ```
 
 **Κανόνες που ενεργοποιούν / σταματούν Release**
@@ -53,7 +54,7 @@ push στο main
 | pull request | ❌ μόνο build/έλεγχοι |
 | λείπει το secret κλειδιού | ❌ build με προσωρινό κλειδί, χωρίς Release (warning) |
 | αποτυχία compile / test / lint | ❌ κόκκινο ✗, καμία έκδοση — οι συσκευές δεν επηρεάζονται |
-| Actions → Build & Release → **Run workflow** | ✅ νέα έκδοση χωρίς αλλαγές |
+| Actions → Build & Release → **Run workflow** | ξαναχτίζει την **ίδια** έκδοση (ίδιο commit)· για νέα έκδοση χρειάζεται νέο commit |
 
 ---
 
@@ -93,12 +94,15 @@ push στο main
 
 ## 4. Εκδόσεις
 
-- `gradle.properties` → `appVersionBase=0.23` (μόνο αυτό αλλάζει ο άνθρωπος, π.χ. σε `0.24`).
-- CI: `BUILD_NUMBER=github.run_number` →
-  `versionName = <base>.<run>` (π.χ. `0.23.11`), `versionCode = major*100000 + minor*1000 + run` (π.χ. `23011`).
-- Τοπικό build: `0.23.0` / `23000` — πάντα μικρότερο από τα CI builds, άρα το OTA το αντικαθιστά.
-- Η σύγκριση στην εφαρμογή είναι αριθμητική ανά τμήμα (`Updater.compare`): `0.23.10 > 0.23.9`.
-- Το `versionCode` πρέπει **πάντα να ανεβαίνει**. Μην το βάλεις σταθερό, μην κατεβάσεις το `appVersionBase`.
+- `gradle.properties` → `appVersionBase=0.24` (μόνο αυτό αλλάζει ο άνθρωπος, π.χ. σε `0.25`).
+- Build number = **πλήθος commits** (`git rev-list --count HEAD`), ίδιο τοπικά και στο CI
+  (το workflow κάνει checkout με `fetch-depth: 0` και το περνά ως `BUILD_NUMBER`).
+  `versionName = <base>.<commits>` (π.χ. `0.24.19`), `versionCode = major*100000 + minor*1000 + commits` (π.χ. `24019`).
+- Γι' αυτό το **Run ▶** του Android Studio βγάζει την ίδια έκδοση με το GitHub για τον ίδιο κώδικα και
+  εγκαθίσταται πάνω από OTA έκδοση χωρίς «downgrade»/απεγκατάσταση· το επόμενο push είναι πάντα μεγαλύτερο.
+- Το project πρέπει να ανοίγει από **git clone** (όχι ZIP), αλλιώς η έκδοση γίνεται `x.y.0`.
+- Η σύγκριση στην εφαρμογή είναι αριθμητική ανά τμήμα (`Updater.compare`): `0.24.10 > 0.24.9`.
+- Το `versionCode` πρέπει **πάντα να ανεβαίνει**: μην κατεβάσεις το `appVersionBase`, μην κάνεις rewrite ιστορικού (squash/force-push μειώνει το πλήθος commits).
 
 ---
 

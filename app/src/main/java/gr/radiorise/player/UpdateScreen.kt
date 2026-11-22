@@ -46,7 +46,8 @@ private fun sizeLabel(bytes:Long)=if(bytes<=0) "" else String.format(Locale.US,"
       Text(tr("Ένα βήμα ακόμα:","One more step:"),fontWeight=FontWeight.Bold)
       Text(tr("1. Πάτα «Άδεια εγκατάστασης».\n2. Ενεργοποίησε «Να επιτρέπεται από αυτή την πηγή».\n3. Γύρνα πίσω — η εγκατάσταση συνεχίζει μόνη της.","1. Tap “Allow installing”.\n2. Turn on “Allow from this source”.\n3. Come back — the installation continues by itself."))
      } else {
-      if(state.auto && radioActive) Text(tr("Θα εγκατασταθεί μόνη της όταν σταματήσει το ραδιόφωνο. Ή πάτα «Εγκατάσταση τώρα» (ο ήχος θα κοπεί για λίγα δευτερόλεπτα).","It installs by itself when the radio stops. Or tap “Install now” (sound stops for a few seconds)."),color=MaterialTheme.colorScheme.primary)
+      if(state.auto) Text(if(radioActive) tr("Μπαίνει μόνη της όταν σταματήσει το ραδιόφωνο και βγεις από την εφαρμογή. Ή πάτα «Εγκατάσταση τώρα» (ο ήχος θα κοπεί για λίγα δευτερόλεπτα).","It installs by itself when the radio stops and you leave the app. Or tap “Install now” (sound stops for a few seconds).")
+       else tr("Μπαίνει μόλις βγεις από την εφαρμογή. Ή πάτα «Εγκατάσταση τώρα» — η εφαρμογή θα κλείσει και θα ανοίξει με τη νέα έκδοση.","It installs as soon as you leave the app. Or tap “Install now” — the app closes and opens with the new version."),color=MaterialTheme.colorScheme.primary)
       Text(tr("Αν εμφανιστεί η οθόνη του Android, πάτα «Ενημέρωση». Οι σταθμοί και οι ρυθμίσεις μένουν.","If Android's screen appears, tap “Update”. Stations and settings are kept."))
      }
     }

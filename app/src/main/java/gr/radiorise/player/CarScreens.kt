@@ -73,7 +73,8 @@ import coil.compose.SubcomposeAsyncImage
  // A group that no longer exists (renamed/deleted) falls back to "All".
  val group=if(!groupsOn) "" else if(activeGroup.isBlank() || activeGroup in groups || (activeGroup==Groups.NONE && hasUngrouped && groups.isNotEmpty())) activeGroup else ""
  val inGroup=stations.filter {Groups.matches(it,group)}
- val filtered=inGroup.filter { it.name.contains(query,true) }
+ // Searching looks through all stations, not only the selected group.
+ val filtered=if(query.isBlank()) inGroup else stations.filter { it.name.contains(query,true) }
  LaunchedEffect(current,stations) {
   if(current.isNotEmpty()) {
    // Only the search text may hide the playing station; the group the user picked stays as it is.
@@ -160,13 +161,13 @@ import coil.compose.SubcomposeAsyncImage
      LazyRow(state=chipState,horizontalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(horizontal=2.dp)) {
       items(chips,key={it}) {g ->
        val count=stations.count {Groups.matches(it,g)}
-       FilterChip(selected=g==group,onClick={onGroup(g)},label={Text("${Groups.label(g)} · $count",fontSize=15.sp,maxLines=1)},modifier=Modifier.height(44.dp),
-        leadingIcon=if(g==group) {{Icon(Icons.Default.Check,null,Modifier.size(18.dp))}} else null)
+       FilterChip(selected=g==group && query.isBlank(),onClick={onGroup(g)},label={Text("${Groups.label(g)} · $count",fontSize=15.sp,maxLines=1)},modifier=Modifier.height(44.dp),
+        leadingIcon=if(g==group && query.isBlank()) {{Icon(Icons.Default.Check,null,Modifier.size(18.dp))}} else null)
       }
      }
     }
     if(query.isNotEmpty()) Row(verticalAlignment=Alignment.CenterVertically) {
-     Text(tr("Φίλτρο: ","Filter: ")+query,Modifier.weight(1f),fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+     Text(tr("Αναζήτηση σε όλους: ","Search in all: ")+query,Modifier.weight(1f),fontSize=12.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
      TextButton({onQuery("")},contentPadding=PaddingValues(horizontal=8.dp)) {Text(tr("Όλοι","All"))}
     }
     LazyColumn(Modifier.weight(1f),state=listState,verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -191,7 +192,7 @@ import coil.compose.SubcomposeAsyncImage
          if(isCurrent && playing) Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
           if(showBars) MiniBars(true,colors.primary)
           Text(tr("Παίζει τώρα","Playing now"),fontSize=12.sp,color=colors.primary)
-         } else Text(if(isCurrent && active) tr("Σύνδεση…","Connecting…") else if(s.group.isNotBlank()) Groups.label(s.group) else "Internet radio",fontSize=12.sp,color=if(isCurrent) colors.primary else colors.onSurfaceVariant)
+         } else Text(if(isCurrent && active) tr("Σύνδεση…","Connecting…") else if(s.group.isNotBlank()) Groups.label(s.group) else tr("Διαδικτυακό ραδιόφωνο","Internet radio"),fontSize=12.sp,color=if(isCurrent) colors.primary else colors.onSurfaceVariant)
         }
         IconButton({onEdit(s)},Modifier.size(48.dp)) {Icon(Icons.Default.MoreVert,tr("Επεξεργασία","Edit"))}
        }

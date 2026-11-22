@@ -417,7 +417,7 @@ class RadioService: android.service.media.MediaBrowserService() {
  private fun folder(id:String,title:String,subtitle:String)=android.media.browse.MediaBrowser.MediaItem(
   android.media.MediaDescription.Builder().setMediaId(id).setTitle(title).setSubtitle(subtitle).build(),android.media.browse.MediaBrowser.MediaItem.FLAG_BROWSABLE)
  private fun browserItem(s:Station):android.media.browse.MediaBrowser.MediaItem {
-  val description=android.media.MediaDescription.Builder().setMediaId(s.id).setTitle(s.name).setSubtitle(if(s.group.isNotBlank()) Groups.label(s.group) else "Internet radio")
+  val description=android.media.MediaDescription.Builder().setMediaId(s.id).setTitle(s.name).setSubtitle(if(s.group.isNotBlank()) Groups.label(s.group) else tr("Διαδικτυακό ραδιόφωνο","Internet radio"))
   if(Playlist.valid(s.logo)) description.setIconUri(android.net.Uri.parse(s.logo))
   return android.media.browse.MediaBrowser.MediaItem(description.build(),android.media.browse.MediaBrowser.MediaItem.FLAG_PLAYABLE)
  }

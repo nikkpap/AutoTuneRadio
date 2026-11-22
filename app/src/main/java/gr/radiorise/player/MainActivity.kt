@@ -61,6 +61,8 @@ class MainActivity: ComponentActivity() {
   Updater.autoCheck(this)
  }
  override fun onPause() {DebugLog.event("APP","onPause");DebugLog.flush();foreground=false;Updater.foreground=false;super.onPause()}
+ // Leaving the app is the right moment for a pending automatic update (it never closes the app in front of the user).
+ override fun onStop() {super.onStop();if(!isChangingConfigurations) Updater.installWhenIdle(this)}
  private var freshLaunch=false
  override fun onCreate(state:Bundle?) {
   super.onCreate(state)
@@ -193,18 +195,19 @@ class MainActivity: ComponentActivity() {
   // Automatic updates: installs by itself as soon as the radio stops playing.
   LaunchedEffect(updateState,active) {
    val ready=updateState as? UpdateState.Ready
-   if(ready!=null && ready.auto && !active && !ready.needsPermission) {Updater.installWhenIdle(this@MainActivity);return@LaunchedEffect}
-   // Otherwise tell the user once per version (ready-but-waiting, needs permission, or auto-update switched off).
+   // Tell the user once per version; the app never installs (= closes itself) while on screen.
    val release=(updateState as? UpdateState.Available)?.release ?: ready?.release ?: return@LaunchedEffect
    if(dialog=="update" || announcedUpdate==release.version) return@LaunchedEffect
    announcedUpdate=release.version
    val text=when {
     ready!=null && ready.needsPermission -> tr("Η ενημέρωση ${release.version} θέλει άδεια εγκατάστασης","Update ${release.version} needs install permission")
-    ready!=null -> tr("Η ${release.version} είναι έτοιμη — θα μπει όταν σταματήσει το ραδιόφωνο","${release.version} is ready — installs when the radio stops")
+    ready!=null && active -> tr("Η ${release.version} είναι έτοιμη — μπαίνει όταν σταματήσει το ραδιόφωνο και κλείσεις την εφαρμογή","${release.version} is ready — installs when the radio stops and you leave the app")
+    ready!=null -> tr("Η ${release.version} είναι έτοιμη — μπαίνει μόλις βγεις από την εφαρμογή","${release.version} is ready — installs as soon as you leave the app")
     else -> tr("Νέα έκδοση ${release.version} διαθέσιμη","New version ${release.version} available")
    }
-   val result=snack.showSnackbar(text,actionLabel=tr("Δες","View"),withDismissAction=true,duration=SnackbarDuration.Long)
-   if(result==SnackbarResult.ActionPerformed) dialog="update"
+   val installNow=ready!=null && !ready.needsPermission
+   val result=snack.showSnackbar(text,actionLabel=if(installNow) tr("Εγκατάσταση τώρα","Install now") else tr("Δες","View"),withDismissAction=true,duration=SnackbarDuration.Long)
+   if(result==SnackbarResult.ActionPerformed) {if(installNow) Updater.install(this@MainActivity) else dialog="update"}
   }
   BackHandler(enabled=tab==1 && !saverOpen) {tab=0;lastTouch=SystemClock.elapsedRealtime()}
   val broadcast by RadioService.broadcast.collectAsState()

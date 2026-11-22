@@ -2,11 +2,18 @@ plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id(
 
 // ---- Version -------------------------------------------------------------------------------
 // Change appVersionBase in gradle.properties when you start a new version (e.g. 0.24).
-// GitHub Actions passes BUILD_NUMBER (the run number), so every push gets a higher version:
-//   local build  → 0.23.0   (versionCode 23000)
-//   CI build #57 → 0.23.57  (versionCode 23057)
+// Every commit gets a higher version automatically:
+//   commit #57 → 0.24.57  (versionCode 24057) — the same locally and on GitHub
 val baseVersion = (project.findProperty("appVersionBase") as String?) ?: "0.23"
-val buildNumber = (System.getenv("BUILD_NUMBER") ?: "0").toIntOrNull() ?: 0
+// Build number = number of git commits, so Android Studio (Run ▶) and GitHub Actions give the SAME version
+// for the same code. Run ▶ therefore installs over an OTA version (no "downgrade" / uninstall), and the next push
+// is always higher. BUILD_NUMBER (set by CI to the same commit count) wins when present.
+val gitCount = runCatching {
+ providers.exec { commandLine("git", "rev-list", "--count", "HEAD"); isIgnoreExitValue = true }
+  .standardOutput.asText.get().trim().toInt()
+}.getOrDefault(0)
+val buildNumber = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: gitCount
+if (buildNumber == 0) logger.warn("AutoTuneRadio: git commit count unavailable — version x.y.0 (open the project from its git clone).")
 val versionParts = baseVersion.split('.').map { it.trim().toIntOrNull() ?: 0 }
 val major = versionParts.getOrElse(0) { 0 }
 val minor = versionParts.getOrElse(1) { 0 }
