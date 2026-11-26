@@ -8,7 +8,7 @@
 "En Lefko (97.7)","https://n12.radiojar.com/srzwv225e3quv?rj-ttl=5&rj-tok=AAABeRkTQyMArzmCkN-ceQODYQ","https://mm.aiircdn.com/630/5dd2b1d909000.png"
 "Velvet (96.8)","https://metromedia.live24.gr/velvet968thess","https://cdn.e-radio.gr/logos/gr/big/velvet968-thessaloniki.png"
 "Republic (Web)","https://metromedia.live24.gr/republicthess","https://cdn.e-radio.gr/logos/gr/big/republicradio.png"
-"Imagine (89.7)","https://vip3.fastcast4u.com/proxy/imagine897?mp=/stream","https://cdn.e-radio.gr/logos/gr/big/imagine.png"
+"Imagine (89.7)","https://imagine897.radioca.st/stream","https://cdn.e-radio.gr/logos/gr/big/imagine.png"
 "Rainbow (89)","http://n09.radiojar.com/083wqknmsuhvv?rj-ttl=5&rj-tok=AAABkipG8QEAQ_aid7jY6QQHiA","https://cdn.e-radio.gr/logos/gr/big/rainbow89.png"
 "1055Rock (105.5)","http://radio.1055rock.gr:30000/1055","https://cdn.e-radio.gr/logos/gr/big/1055rock.png"
 "Just FM (93.0)","https://sp3.streams.ovh:7055/stream;&radiotype=shoutcast","https://justradio.gr//images/just_logo_small.png"
